@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "fakenews - tt2"
+version = "0.1.0"
+description = "Proyecto para Trabajo de Titulo 2 2024"
+authors = ["axeloon <axelquezadac@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+playwright = "^1.46.0"
+uvicorn = "^0.30.6"
+fastapi = "^0.112.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
