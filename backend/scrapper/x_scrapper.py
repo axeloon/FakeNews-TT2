@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from bs4 import BeautifulSoup
@@ -32,7 +33,7 @@ class XScraper:
         await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div/div/button')
         await self.page.fill('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div/div[3]/div/label/div/div[2]/div[1]/input', X_PASSWORD)
         await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div[1]/div/div/button')
-        logger.info(f"Sesión Iniciada en X con el usuario {X_USERNAME}")
+        logger.info(f"Sesión Iniciada en X con el email {X_EMAIL}")
 
 
     async def get_tweets(self, username, max_results=10):
@@ -45,30 +46,33 @@ class XScraper:
 
     async def fetch_user_profile_html(self, username):
         await self.page.goto(f"https://x.com/{username}")
+        await asyncio.sleep(2)
         # Esperar a que el contenido relevante esté cargado
-        await self.page.wait_for_selector('//*[@id="react-root"]/div/div/div[2]/main')
+        await self.page.wait_for_selector('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div', state='attached')
         # Obtener el HTML de la sección deseada
-        content_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main')
+        content_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/div/div')
         return content_html
 
     def process_user_html(self, html_content):
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        import pdb; pdb.set_trace()
         # Verificar si el usuario está verificado
         verified_icon = soup.find('svg', {'aria-label': 'Verified account'})
         verified = verified_icon is not None
         
         # Buscar la fecha de unión
-        join_date = soup.find(text="Joined")
-        if join_date:
-            join_date = join_date.parent.text if join_date.parent else None
+        join_date = soup.find('span', text=lambda text: text and 'Joined' in text)
+        join_date = join_date.text if join_date else None
         
-        # Información de seguidores
-        followers_info = None
-        followers_section = soup.find_all(text=["Followers", "Following", "Subscriptions"])
-        if followers_section:
-            followers_info = {item.text: item.find_next('span').text for item in followers_section}
+        # Información de seguidores, seguidos y suscripciones
+        followers_info = {}
+        followers_sections = soup.find_all('a', href=lambda href: href and any(x in href for x in ['following', 'followers', 'subscriptions']))
+        for section in followers_sections:
+            numbers = section.find_all('span', class_='css-1jxf684')
+            if numbers:
+                value = numbers[0].text
+                label = numbers[1].text  # El texto que acompaña al número, debe ser Following, Followers o Subscriptions
+                followers_info[label] = value
 
         return {
             "verified": verified,
