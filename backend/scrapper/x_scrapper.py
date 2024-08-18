@@ -1,6 +1,7 @@
 import asyncio
 import logging
-import re
+import requests
+import os
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
@@ -46,6 +47,8 @@ class XScraper:
         await asyncio.sleep(2)
         content_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/div/div')
         tweets_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/section/div')
+        
+        await self.close()
         return content_html, tweets_html
 
 
@@ -92,6 +95,11 @@ class XScraper:
             time_tag = tweet.find_previous('time')
             date = time_tag['datetime'] if time_tag else 'Fecha no disponible'
             
+            # Extraer el nombre de usuario y el handle
+            user_name_tag = tweet.find_previous('div', attrs={'data-testid': 'User-Name'})
+            full_user_name = user_name_tag.get_text(strip=True) if user_name_tag else 'Usuario no disponible'
+            name, user_name = full_user_name.split('@')[0].strip(), '@' + full_user_name.split('@')[1].split('·')[0].strip() if '@' in full_user_name else None
+
             # Extraer el texto del tweet
             tweet_texts = tweet.find_all('span')
             text_parts = [span.get_text(strip=True) for span in tweet_texts if 'media could not be played' not in span.get_text(strip=True)]
@@ -101,17 +109,34 @@ class XScraper:
             interactions_div = tweet.find_next('div', {'role': 'group'})
             interactions = interactions_div['aria-label'] if interactions_div else 'Interacciones no disponibles'
 
+            # Intentar obtener la URL de la imagen del tweet de un div específico
+            image_div = tweet.find_next('div', {'data-testid': 'tweetPhoto'})
+            image_url = image_div.find('img')['src'] if image_div and image_div.find('img') else None
+            
+            # Si hay una imagen, descargar y guardar
+            if image_url:
+                response = requests.get(image_url)
+                folder_name = f"tweets"
+                if not os.path.exists(folder_name):
+                    os.makedirs(folder_name)
+                file_path = os.path.join(folder_name, f'{name}_{date.replace(':', '')}.jpg')
+                with open(file_path, 'wb') as f:
+                    f.write(response.content)
+            
             # Agregar un diccionario con toda la información del tweet
             tweets.append({
                 'fecha': date,
+                'nombre': name,
+                'usuario': user_name,
                 'texto': tweet_text,
-                'interacciones': interactions
+                'interacciones': interactions,
+                'imagen': file_path if image_url else 'No image'
             })
 
         return tweets
 
 
     async def close(self):
-
         await self.browser.close()
         await self.playwright.stop()
+        logger.info("Navegador cerrado y Playwright detenido.")
