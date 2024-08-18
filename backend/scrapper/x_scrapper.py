@@ -66,12 +66,13 @@ class XScraper:
         
         # Información de seguidores, seguidos y suscripciones
         followers_info = {}
+        labels = ["Following", "Followers", "Subscriptions", "Followed By"]
         followers_sections = soup.find_all('a', href=lambda href: href and any(x in href for x in ['following', 'followers', 'subscriptions']))
-        for section in followers_sections:
+        for i, section in enumerate(followers_sections):
             numbers = section.find_all('span', class_='css-1jxf684')
             if numbers:
                 value = numbers[0].text
-                label = numbers[1].text  # El texto que acompaña al número, debe ser Following, Followers o Subscriptions
+                label = labels[i]
                 followers_info[label] = value
 
         return {
