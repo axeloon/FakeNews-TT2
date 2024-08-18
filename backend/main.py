@@ -21,10 +21,14 @@ async def shutdown_event():
 async def search_user(username: str):
     logger.info(f"Buscando usuario: {username}")
     try:
-        html_user_data = await x_scraper.fetch_user_profile_html(username)
+        html_user_data, tweets_html = await x_scraper.fetch_user_profile_html(username)
         user_data = x_scraper.process_user_html(html_user_data)
-        logger.info(f"Usuario encontrado: {user_data}")
-        return user_data
+        tweets = x_scraper.extract_tweets(tweets_html)
+        logger.info(f"Usuario encontrado: {user_data}, Tweets: {len(tweets)}")
+        return {
+            "user_data": user_data,
+            "tweets": tweets
+        }
     except Exception as e:
         logger.error(f"Error al buscar usuario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
