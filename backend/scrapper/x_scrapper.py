@@ -88,14 +88,26 @@ class XScraper:
         tweet_elements = soup.find_all('div', attrs={'data-testid': 'tweetText'})
         tweets = []
         for tweet in tweet_elements:
-            if len(tweets) >= 5:
-                break
-            # Extraer el texto de cada tweet, utilizando los spans dentro
+            # Extraer la fecha, que generalmente se encuentra en el elemento <time> anterior al tweet
+            time_tag = tweet.find_previous('time')
+            date = time_tag['datetime'] if time_tag else 'Fecha no disponible'
+            
+            # Extraer el texto del tweet
             tweet_texts = tweet.find_all('span')
             text_parts = [span.get_text(strip=True) for span in tweet_texts if 'media could not be played' not in span.get_text(strip=True)]
-            if text_parts:
-                filtered_tweet = ' '.join(text_parts)
-                tweets.append(filtered_tweet)
+            tweet_text = ' '.join(text_parts) if text_parts else 'Contenido no disponible'
+            
+            # Extraer las interacciones, que se encuentran en un div con aria-label debajo del tweet
+            interactions_div = tweet.find_next('div', {'role': 'group'})
+            interactions = interactions_div['aria-label'] if interactions_div else 'Interacciones no disponibles'
+
+            # Agregar un diccionario con toda la información del tweet
+            tweets.append({
+                'fecha': date,
+                'texto': tweet_text,
+                'interacciones': interactions
+            })
+
         return tweets
 
 
