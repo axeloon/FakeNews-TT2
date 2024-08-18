@@ -84,16 +84,18 @@ class XScraper:
 
     def extract_tweets(self, html_content):
         soup = BeautifulSoup(html_content, 'html.parser')
-        # Usar una expresión regular para encontrar la sección de los tweets
-        tweets_section = soup.find('div', {'class': 'css-175oi2r'})
-        # Extraer los primeros 5 tweets
+        # Buscar todos los elementos que contienen texto de tweet
+        tweet_elements = soup.find_all('div', attrs={'data-testid': 'tweetText'})
         tweets = []
-        if tweets_section:
-        # Buscar cada tweet por su etiqueta específica y clase
-            tweet_elements = tweets_section.find_all('div', {'class': 'css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l'}, limit=5)
-            for tweet in tweet_elements:
-                tweet_text = tweet.get_text(strip=True)  # Extrae el texto de cada tweet
-                tweets.append(tweet_text)        
+        for tweet in tweet_elements:
+            if len(tweets) >= 5:
+                break
+            # Extraer el texto de cada tweet, utilizando los spans dentro
+            tweet_texts = tweet.find_all('span')
+            text_parts = [span.get_text(strip=True) for span in tweet_texts if 'media could not be played' not in span.get_text(strip=True)]
+            if text_parts:
+                filtered_tweet = ' '.join(text_parts)
+                tweets.append(filtered_tweet)
         return tweets
 
 
