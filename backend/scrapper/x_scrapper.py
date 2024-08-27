@@ -28,11 +28,15 @@ class XScraper:
             )
         self.page = await self.context.new_page()
         await self.page.goto(f"https://x.com/home")
+        # Hacer clic en el botón de inicio de sesión
         await self.page.click("//*[@id='react-root']/div/div/div[2]/main/div/div/div[1]/div[1]/div/div[3]/div[4]/a")
         await self.page.fill("//*[@id='layers']/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div/div/div[4]/label/div/div[2]/div/input", X_EMAIL)
         await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div/div/button[2]')
-        await self.page.fill('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div[2]/label/div/div[2]/div/input', X_USERNAME)
-        await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div/div/button')
+        # Verificar si se requiere el nombre de usuario
+        if await self.page.wait_for_selector('xpath=//*[@id="modal-header"]/span', state='visible'):
+            await self.page.fill('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div[2]/label/div/div[2]/div/input', X_USERNAME)
+            await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div/div/button')
+
         await self.page.fill('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div/div[3]/div/label/div/div[2]/div[1]/input', X_PASSWORD)
         await self.page.click('//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div[1]/div/div/button')
         logger.info(f"Sesión Iniciada en X con el email {X_EMAIL}")
@@ -47,8 +51,23 @@ class XScraper:
         await asyncio.sleep(2)
         content_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/div/div')
         tweets_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/section/div')
+        await asyncio.sleep(2)
+        # Scroll down lento para cargar más tweets
+        scroll_delay = 0.2  # Tiempo de espera entre cada scroll pequeño
+        max_scroll_depth = 10  # Cantidad de veces que se repetirá el scroll pequeño dentro de cada iteración grande
+        for _ in range(5):  # Ajusta el rango según sea necesario para cargar más tweets
+            for i in range(max_scroll_depth):
+                # Scroll hacia abajo un poco a la vez
+                await self.page.evaluate(f'window.scrollBy(0, window.innerHeight / {max_scroll_depth})')
+                await asyncio.sleep(scroll_delay)  # Esperar para permitir que la página cargue más tweets
+            new_tweets_html = await self.page.inner_html('//*[@id="react-root"]/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/div/div/section/div')
+            if new_tweets_html not in tweets_html:
+                tweets_html += new_tweets_html
+            await asyncio.sleep(2)  # Espera adicional después de cada bloque de scrolls
         
-        await self.close()
+        # Asegurarse de llegar al final de la página después de todos los ciclos de scroll
+        await self.page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+        await asyncio.sleep(2)  # Esperar para que se carguen los últimos tweets
         return content_html, tweets_html
 
 
@@ -85,12 +104,12 @@ class XScraper:
         }
     
 
-    def extract_tweets(self, html_content):
+    def extract_tweets(self, html_content, tweet_limit):
         soup = BeautifulSoup(html_content, 'html.parser')
         # Buscar todos los elementos que contienen texto de tweet
         tweet_elements = soup.find_all('div', attrs={'data-testid': 'tweetText'})
         tweets = []
-        for tweet in tweet_elements:
+        for tweet in tweet_elements[:tweet_limit]:
             # Extraer la fecha, que generalmente se encuentra en el elemento <time> anterior al tweet
             time_tag = tweet.find_previous('time')
             date = time_tag['datetime'] if time_tag else 'Fecha no disponible'
