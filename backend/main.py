@@ -23,7 +23,7 @@ async def search_user(username: str, tweets_len: int = Query(30, description="Ca
     try:
         html_user_data, tweets_html = await x_scraper.fetch_user_profile_html(username)
         user_data = x_scraper.process_user_html(html_user_data)
-        tweets = x_scraper.extract_tweets(tweets_html, tweet_limit=tweets_len)
+        tweets = await x_scraper.extract_tweets(tweets_html, tweet_limit=tweets_len)
         logger.info(f"Usuario encontrado: {user_data}, Tweets: {len(tweets)}")
         return {
             "user_data": user_data,
