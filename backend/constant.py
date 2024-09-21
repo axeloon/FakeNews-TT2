@@ -5,7 +5,7 @@ X_BASE_URL = "https://x.com"
 X_LOGIN_BUTTON_XPATH = "//*[@id='react-root']/div/div/div[2]/main/div/div/div[1]/div[1]/div/div[3]/div[4]/a"
 X_EMAIL_INPUT_XPATH = "//*[@id='layers']/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div/div/div[4]/label/div/div[2]/div/input"
 X_NEXT_BUTTON_XPATH = '//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div/div/div/button[2]'
-X_SELECTOR_MODAL_HEADER = 'xpath=//*[@id="modal-header"]/span'
+X_SELECTOR_MODAL_HEADER = '[data-testid="ocfEnterTextTextInput"]'
 X_USERNAME_INPUT_XPATH = '//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div[2]/label/div/div[2]/div/input'
 X_USERNAME_NEXT_BUTTON_XPATH = '//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[2]/div/div/div/button'
 X_PASSWORD_INPUT_XPATH = '//*[@id="layers"]/div[2]/div/div/div/div/div/div[2]/div[2]/div/div/div[2]/div[2]/div[1]/div/div/div[3]/div/label/div/div[2]/div[1]/input'
@@ -37,7 +37,10 @@ def get_window_scroll_by(max_scroll_depth):
 
 WINDOW_SCROLL_TO = 'window.scrollTo(0, document.body.scrollHeight)'
 
-# Constants
+# Constantes para TweetService
+X_TWEET_TEXT = 'tweetText'
+X_USER_NAME = 'User-Name'
+X_TWEET_IMAGE = 'tweetPhoto'
 X_TWEET_IMAGE_PATH = 'tweets'
 
 # Selectors
