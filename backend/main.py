@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
-from .scrapper.x_scrapper import XScrapper
+from .scrapper.XScrapper import XScrapper
 from .services.FileService import FileService
 from .constant import X_TWEET_IMAGE_PATH
 from .models import SearchUserResponse
