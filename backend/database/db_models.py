@@ -1,5 +1,6 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Text
+import datetime
+from sqlalchemy import Column, Integer, String, Date, DateTime, Text
+
 from .connection import Base
 
 class NoticiaRedesSociales(Base):
@@ -11,5 +12,5 @@ class NoticiaRedesSociales(Base):
     content = Column(Text)
     publication_date = Column(Date)
     author = Column(String(100))
-    created_at = Column(DateTime, default=lambda: datetime.now(datetime.UTC))
-    updated_at = Column(DateTime, default=lambda: datetime.now(datetime.UTC), onupdate=lambda: datetime.now(datetime.UTC))
+    created_at = Column(DateTime, nullable=True, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
