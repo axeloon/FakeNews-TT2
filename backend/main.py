@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
+from typing import List
 from sqlalchemy.orm import Session
 from .scrapper.XScrapper import XScrapper
 from .services.FileService import FileService
 from .constant import X_TWEET_IMAGE_PATH
-from .utils.response_models import SearchUserResponse
+from .utils.response_models import SearchUserResponse, NoticiaResponse
 from .database.connection import get_db
 from .database.use_cases import NoticiaRedesSocialesUseCase
 import logging
@@ -39,3 +40,17 @@ async def search_user(
     except Exception as e:
         logger.error(f"Error al buscar usuario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/noticias", response_model=List[NoticiaResponse])
+async def get_noticias(
+    skip: int = Query(0, description="Número de noticias a saltar"),
+    limit: int = Query(100, description="Número máximo de noticias a retornar"),
+    db: Session = Depends(get_db)
+):
+    try:
+        noticias = NoticiaRedesSocialesUseCase.get_all_noticias(db, skip=skip, limit=limit)
+        return [NoticiaResponse.model_validate(noticia) for noticia in noticias]
+    except Exception as e:
+        logger.error(f"Error al obtener noticias: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor al obtener noticias")
