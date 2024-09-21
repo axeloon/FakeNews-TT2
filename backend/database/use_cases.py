@@ -30,12 +30,14 @@ class NoticiaRedesSocialesUseCase:
         return db_noticia
 
     @staticmethod
-    def get_noticia(db: Session, noticia_id: int) -> Optional[NoticiaRedesSociales]:
-        return db.query(NoticiaRedesSociales).filter(NoticiaRedesSociales.id == noticia_id).first()
+    def get_noticia(db: Session, noticia_id: int) -> Optional[dict]:
+        noticia = db.query(NoticiaRedesSociales).filter(NoticiaRedesSociales.id == noticia_id).first()
+        return NoticiaRedesSocialesUseCase.noticia_to_dict(noticia) if noticia else None
 
     @staticmethod
-    def get_all_noticias(db: Session, skip: int = 0, limit: int = 100) -> List[NoticiaRedesSociales]:
-        return db.query(NoticiaRedesSociales).offset(skip).limit(limit).all()
+    def get_all_noticias(db: Session, skip: int = 0, limit: int = 100) -> List[dict]:
+        noticias = db.query(NoticiaRedesSociales).offset(skip).limit(limit).all()
+        return [NoticiaRedesSocialesUseCase.noticia_to_dict(noticia) for noticia in noticias]
 
     @staticmethod
     def delete_noticia(db: Session, noticia_id: int) -> bool:
@@ -64,3 +66,16 @@ class NoticiaRedesSocialesUseCase:
             logger.info(f"Se han almacenado {len(stored_news)} noticias en la base de datos")
         except Exception as e:
             logger.error(f"Error almacenando noticias en la base de datos: {e}")
+
+    @staticmethod
+    def noticia_to_dict(noticia: NoticiaRedesSociales) -> dict:
+        return {
+            "id": noticia.id,
+            "source": noticia.source,
+            "title": noticia.title,
+            "content": noticia.content,
+            "publication_date": noticia.publication_date.isoformat(),
+            "author": noticia.author,
+            "created_at": noticia.created_at.isoformat(),
+            "updated_at": noticia.updated_at.isoformat()
+        }
