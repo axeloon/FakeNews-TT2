@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from pydantic import BaseModel, root_validator
 from typing import List, Optional
 
@@ -26,3 +27,13 @@ class SearchUserResponse(BaseModel):
         if isinstance(values.get('tweets'), list):
             values['tweets'] = [Tweet(**tweet) if isinstance(tweet, dict) else tweet for tweet in values['tweets']]
         return values
+    
+class NoticiaResponse(BaseModel):
+    id: int
+    source: str
+    title: str
+    content: str
+    publication_date: date
+    author: str
+    created_at: datetime
+    updated_at: datetime
