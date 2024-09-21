@@ -9,7 +9,7 @@ from playwright.async_api import async_playwright
 from backend import constant as c
 from backend.config import X_EMAIL, X_USERNAME, X_PASSWORD
 from backend.services.TweetService import TweetService
-from backend.models import UserData, SearchUserResponse
+from backend.utils.response_models import UserData, SearchUserResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

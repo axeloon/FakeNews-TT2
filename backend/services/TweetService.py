@@ -4,7 +4,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 from backend import constant as c
-from backend.models import Tweet
+from backend.utils.response_models import Tweet
 
 logger = logging.getLogger(__name__)
 
