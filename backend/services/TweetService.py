@@ -44,14 +44,14 @@ class TweetService:
         else:
             file_path = 'No image'
         
-        return {
-            'fecha': date,
-            'nombre': name,
-            'usuario': user_name,
-            'texto': tweet_text,
-            'interacciones': interactions,
-            'imagen': file_path
-        }
+        return Tweet(
+            fecha=date,
+            nombre=name,
+            usuario=user_name,
+            texto=tweet_text,
+            interacciones=interactions,
+            imagen=file_path
+        )
 
     @staticmethod
     async def load_more_tweets(page, tweets_html, tweet_limit):
@@ -83,7 +83,7 @@ class TweetService:
         while len(tweets) < tweet_limit:
             for tweet in tweet_elements[:tweet_limit - len(tweets)]:
                 tweet_data = TweetService.extract_tweet(tweet)
-                tweets.append(Tweet(**tweet_data))
+                tweets.append(Tweet(**tweet_data.__dict__))
             if len(tweets) < tweet_limit:
                 logger.info("Cargando más tweets.")
                 html_content = await TweetService.load_more_tweets(page, html_content, tweet_limit)
