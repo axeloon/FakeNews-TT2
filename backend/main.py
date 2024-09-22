@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-from .routes import noticia_routes, x_scrapper_routes
+from .routes import noticia_routes, x_routes, emol_routes
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -20,5 +20,6 @@ app.add_middleware(
 )
 
 # Aplicar el prefijo "/api" a todos los routers
-app.include_router(x_scrapper_routes.router, prefix="/api")
+app.include_router(x_routes.router, prefix="/api")
 app.include_router(noticia_routes.router, prefix="/api")
+app.include_router(emol_routes.router, prefix="/api")
