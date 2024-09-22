@@ -3,7 +3,7 @@ from .db_models import NoticiaRedesSociales
 from datetime import date
 from typing import List, Optional
 import logging
-from ..utils.response_models import SearchUserResponse
+from ..utils.response_models import SearchUserResponse, NoticiaBaseResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,20 +49,36 @@ class NoticiaRedesSocialesUseCase:
         return False
 
     @staticmethod
-    def store_search_result(db: Session, result: SearchUserResponse):
+    def store_result(db: Session, result):
         stored_news = []
         try:
-            for tweet in result.tweets:
-                noticia = NoticiaRedesSocialesUseCase.create_noticia(
-                    db=db,
-                    source="Twitter",
-                    title=f"Tweet by {tweet.usuario}",
-                    content=tweet.texto,
-                    publication_date=date.fromisoformat(tweet.fecha.split('T')[0]),
-                    author=tweet.nombre
-                )
-                if noticia is not None:
-                    stored_news.append(noticia)
+            if isinstance(result, SearchUserResponse):
+                for tweet in result.tweets:
+                    noticia = NoticiaRedesSocialesUseCase.create_noticia(
+                        db=db,
+                        source="Twitter",
+                        title=f"Tweet by {tweet.usuario}",
+                        content=tweet.texto,
+                        publication_date=date.fromisoformat(tweet.fecha.split('T')[0]),
+                        author=tweet.nombre
+                    )
+                    if noticia is not None:
+                        stored_news.append(noticia)
+            elif isinstance(result, list) and all(isinstance(item, NoticiaBaseResponse) for item in result):
+                for noticia_data in result:
+                    noticia = NoticiaRedesSocialesUseCase.create_noticia(
+                        db=db,
+                        source=noticia_data.source,
+                        title=noticia_data.title,
+                        content=noticia_data.content,
+                        publication_date=noticia_data.publication_date,
+                        author=noticia_data.author
+                    )
+                    if noticia is not None:
+                        stored_news.append(noticia)
+            else:
+                raise ValueError("Tipo de resultado no soportado")
+            
             logger.info(f"Se han almacenado {len(stored_news)} noticias en la base de datos")
         except Exception as e:
             logger.error(f"Error almacenando noticias en la base de datos: {e}")
