@@ -19,35 +19,44 @@ class XScrapper:
         self.playwright = None
         self.browser = None
         self.page = None
-
+        self.initialized = False
 
     async def start(self):
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)
-        self.context = await self.browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                user_agent=c.USER_AGENT
-            )
-        self.page = await self.context.new_page()
-        await self.page.goto(f"{c.X_BASE_URL}/home")
-        # Hacer clic en el botón de inicio de sesión
-        await self.page.click(c.X_LOGIN_BUTTON_XPATH)
-        await self.page.fill(c.X_EMAIL_INPUT_XPATH, X_EMAIL)
-        await self.page.click(c.X_NEXT_BUTTON_XPATH)
-        # Verificar si se requiere el nombre de usuario
+        if self.initialized:
+            return
         try:
-            await self.page.wait_for_selector(c.X_SELECTOR_MODAL_HEADER, state='visible', timeout=1000)
-            await self.page.fill(c.X_USERNAME_INPUT_XPATH, X_USERNAME)
-            await self.page.click(c.X_USERNAME_NEXT_BUTTON_XPATH)
-        except:
-            logger.info("No se requiere el nombre de usuario, continuando con el ingreso de la contraseña.")
-        
-        await self.page.fill(c.X_PASSWORD_INPUT_XPATH, X_PASSWORD)
-        await self.page.click(c.X_LOGIN_SUBMIT_BUTTON_XPATH)
-        logger.info(f"Sesión Iniciada en X con el email {X_EMAIL}")
-
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(headless=True)
+            self.context = await self.browser.new_context(
+                    viewport={"width": 1920, "height": 1080},
+                    user_agent=c.USER_AGENT
+                )
+            self.page = await self.context.new_page()
+            await self.page.goto(f"{c.X_BASE_URL}/home")
+            # Hacer clic en el botón de inicio de sesión
+            await self.page.click(c.X_LOGIN_BUTTON_XPATH)
+            await self.page.fill(c.X_EMAIL_INPUT_XPATH, X_EMAIL)
+            await self.page.click(c.X_NEXT_BUTTON_XPATH)
+            # Verificar si se requiere el nombre de usuario
+            try:
+                await self.page.wait_for_selector(c.X_SELECTOR_MODAL_HEADER, state='visible', timeout=1000)
+                await self.page.fill(c.X_USERNAME_INPUT_XPATH, X_USERNAME)
+                await self.page.click(c.X_USERNAME_NEXT_BUTTON_XPATH)
+            except:
+                logger.info("No se requiere el nombre de usuario, continuando con el ingreso de la contraseña.")
+            
+            await self.page.fill(c.X_PASSWORD_INPUT_XPATH, X_PASSWORD)
+            await self.page.click(c.X_LOGIN_SUBMIT_BUTTON_XPATH)
+            logger.info(f"Sesión Iniciada en X con el email {X_EMAIL}")
+            self.initialized = True
+        except Exception as e:
+            logger.error(f"Error al inicializar XScrapper: {e}")
+            await self.close()
+            raise
 
     async def fetch_user_profile_html(self, username):
+        if not self.initialized or self.page is None:
+            raise Exception("XScrapper no está inicializado correctamente")
         await self.page.goto(f"{c.X_BASE_URL}/{username}")
         await asyncio.sleep(2)
         # Esperar a que el contenido relevante esté cargado
@@ -58,7 +67,6 @@ class XScrapper:
         tweets_html = await self.page.inner_html(c.X_PROFILE_TWEETS_XPATH)
         await asyncio.sleep(2)
         return content_html, tweets_html
-
 
     def process_user_html(self, html_content):
         soup = BeautifulSoup(html_content, c.HTML_PARSER)
@@ -92,14 +100,27 @@ class XScrapper:
             followers_info=followers_info
         )
 
-
     async def search_user(self, username, tweet_limit=10):
+        if not self.initialized:
+            await self.start()
         content_html, tweets_html = await self.fetch_user_profile_html(username)
         user_data = self.process_user_html(content_html)
         tweets = await TweetService.extract_tweets(self.page, tweets_html, tweet_limit)
         return SearchUserResponse(user_data=user_data, tweets=tweets)
 
     async def close(self):
-        await self.browser.close()
-        await self.playwright.stop()
+        if self.browser:
+            await self.browser.close()
+        if self.playwright:
+            await self.playwright.stop()
+        self.initialized = False
         logger.info("Navegador cerrado y Playwright detenido.")
+
+    @staticmethod
+    async def get_instance():
+        x_scrapper = XScrapper()
+        await x_scrapper.start()
+        try:
+            yield x_scrapper
+        finally:
+            await x_scrapper.close()
