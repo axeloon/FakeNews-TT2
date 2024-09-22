@@ -49,3 +49,7 @@ DIV = 'div'
 TIME = 'time'
 IMG = 'img'
 
+# Emol
+NEWSAPI_NOTICIA = 'https://newsapi.ecn.cl/NewsApi/emol/noticia/'
+TABLE = "<table"
+TABLA_EN_NOTICIA = "class=\"tablaennoticia\""
