@@ -23,7 +23,7 @@ async def search_user(
     logger.info(f"Buscando usuario: {username}, para encontrar los {tweets_len} primeros tweets")
     try:
         result = await x_scrapper.search_user(username, tweet_limit=tweets_len)
-        background_tasks.add_task(NoticiaRedesSocialesUseCase.store_search_result, db, result)
+        background_tasks.add_task(NoticiaRedesSocialesUseCase.store_result, db, result)
         background_tasks.add_task(FileService.clean_folders, [X_TWEET_IMAGE_PATH])
         return result
     except Exception as e:
