@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, Field
 from typing import List, Optional
 
 class UserData(BaseModel):
@@ -27,13 +27,35 @@ class SearchUserResponse(BaseModel):
         if isinstance(values.get('tweets'), list):
             values['tweets'] = [Tweet(**tweet) if isinstance(tweet, dict) else tweet for tweet in values['tweets']]
         return values
-    
-class NoticiaResponse(BaseModel):
-    id: int
+
+class NoticiaBase(BaseModel):
     source: str
     title: str
     content: str
     publication_date: date
     author: str
+
+class NoticiaBaseResponse(NoticiaBase):
+    pass
+
+class NoticiaResponse(NoticiaBase):
+    id: int
     created_at: datetime
     updated_at: datetime
+
+class EmolNoticiaResponse(BaseModel):
+    id: str
+    url: str
+    title: str
+    subtitle: str
+    content: str
+    publication_date: str
+    publication_time: str
+    category: str
+    author: str
+    publisher: str = Field(default="EMOL")
+    headline: str = Field(default="historic")
+
+class EmolHistoricoResponse(BaseModel):
+    noticias: List[EmolNoticiaResponse]
+    total: int
