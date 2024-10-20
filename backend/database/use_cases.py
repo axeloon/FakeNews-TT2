@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class NoticiaRedesSocialesUseCase:
     @staticmethod
-    def create_noticia(db: Session, source: str, title: str, content: str, publication_date: date, author: str) -> Optional[NoticiaRedesSociales]:
+    def create_noticia(db: Session, source: str, title: str, content: str, publication_date: date, author: str, is_false: bool ) -> Optional[NoticiaRedesSociales]:
         # Verificar si ya existe una noticia con el mismo contenido
         existing_noticia = db.query(NoticiaRedesSociales).filter(NoticiaRedesSociales.content == content).first()
         if existing_noticia:
@@ -21,7 +21,8 @@ class NoticiaRedesSocialesUseCase:
             title=title,
             content=content,
             publication_date=publication_date,
-            author=author
+            author=author,
+            is_false=is_false
         )
         db.add(db_noticia)
         db.commit()
@@ -72,7 +73,8 @@ class NoticiaRedesSocialesUseCase:
                         title=noticia_data.title,
                         content=noticia_data.content,
                         publication_date=noticia_data.publication_date,
-                        author=noticia_data.author
+                        author=noticia_data.author,
+                        is_false=False
                     )
                     if noticia is not None:
                         stored_news.append(noticia)
