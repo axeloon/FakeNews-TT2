@@ -1,8 +1,10 @@
+import json
 from sqlalchemy.orm import Session
 from .db_models import NoticiaRedesSociales
 from datetime import date
 from typing import List, Optional
 import logging
+
 from ..utils.response_models import SearchUserResponse, NoticiaBaseResponse
 
 logger = logging.getLogger(__name__)
@@ -61,7 +63,8 @@ class NoticiaRedesSocialesUseCase:
                         title=f"Tweet by {tweet.usuario}",
                         content=tweet.texto,
                         publication_date=date.fromisoformat(tweet.fecha.split('T')[0]),
-                        author=tweet.nombre
+                        author=tweet.nombre,
+                        is_false=not any(user['usuario'].lower() == tweet.usuario.lower().replace('@', '') for user in json.load(open('backend/data/whitelist_x.json')))
                     )
                     if noticia is not None:
                         stored_news.append(noticia)
@@ -82,6 +85,7 @@ class NoticiaRedesSocialesUseCase:
                 raise ValueError("Tipo de resultado no soportado")
             
             logger.info(f"Se han almacenado {len(stored_news)} noticias en la base de datos")
+            return stored_news
         except Exception as e:
             logger.error(f"Error almacenando noticias en la base de datos: {e}")
 
