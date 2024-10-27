@@ -1,0 +1,227 @@
+[
+    {
+        "usuario": "LUN",
+        "nombre": "Las Últimas Noticias",
+        "url": "https://mobile.x.com/LUN"
+    },
+    {
+        "usuario": "gabrielboric",
+        "nombre": "Gabriel Boric Font",
+        "url": "https://x.com/gabrielboric"
+    },
+    {
+        "usuario": "agenciaunochile",
+        "nombre": "AgenciaUno",
+        "url": "https://x.com/agenciaunochile"
+    },
+    {
+        "usuario": "ciper",
+        "nombre": "CIPER Chile",
+        "url": "https://x.com/ciper"
+    },
+    {
+        "usuario": "Min_Interior",
+        "nombre": "Ministerio del Interior y Seguridad Pública",
+        "url": "https://mobile.x.com/Min_Interior"
+    },
+    {
+        "usuario": "inddhh",
+        "nombre": "INDH Chile",
+        "url": "https://x.com/inddhh"
+    },
+    {
+        "usuario": "googlechile",
+        "nombre": "Google Chile",
+        "url": "https://x.com/googlechile"
+    },
+    {
+        "usuario": "emol",
+        "nombre": "Emol",
+        "url": "https://x.com/emol"
+    },
+    {
+        "usuario": "teamchile_coch",
+        "nombre": "Team Chile",
+        "url": "https://x.com/teamchile_coch"
+    },
+    {
+        "usuario": "senado_chile",
+        "nombre": "Senado Chile",
+        "url": "https://x.com/senado_chile"
+    },
+    {
+        "usuario": "EmbEspanaChile",
+        "nombre": "Embajada de España en Chile",
+        "url": "https://x.com/EmbEspanaChile"
+    },
+    {
+        "usuario": "SII_Chile",
+        "nombre": "Servicio de Impuestos Internos (SII)",
+        "url": "https://x.com/SII_Chile"
+    },
+    {
+        "usuario": "min_ciencia",
+        "nombre": "Ministerio de Ciencia",
+        "url": "https://x.com/min_ciencia"
+    },
+    {
+        "usuario": "bancodechile",
+        "nombre": "Banco de Chile",
+        "url": "https://x.com/bancodechile"
+    },
+    {
+        "usuario": "bcentralchile",
+        "nombre": "Banco Central de Chile",
+        "url": "https://x.com/bcentralchile"
+    },
+    {
+        "usuario": "ANFPChile",
+        "nombre": "ANFP Chile",
+        "url": "https://x.com/ANFPChile"
+    },
+    {
+        "usuario": "carabdechile",
+        "nombre": "Carabineros de Chile",
+        "url": "https://x.com/carabdechile"
+    },
+    {
+        "usuario": "metrodesantiago",
+        "nombre": "Metro de Santiago",
+        "url": "https://x.com/metrodesantiago"
+    },
+    {
+        "usuario": "PDI_CHILE",
+        "nombre": "PDI Chile",
+        "url": "https://mobile.x.com/PDI_CHILE"
+    },
+    {
+        "usuario": "bomberosdechile",
+        "nombre": "Bomberos de Chile",
+        "url": "https://x.com/bomberosdechile"
+    },
+    {
+        "usuario": "CSIRTGOB",
+        "nombre": "CSIRT Gobierno de Chile",
+        "url": "https://x.com/CSIRTGOB"
+    },
+    {
+        "usuario": "canal13",
+        "nombre": "Canal 13",
+        "url": "https://mobile.x.com/canal13"
+    },
+    {
+        "usuario": "puranoticia",
+        "nombre": "Puranoticia",
+        "url": "https://mobile.x.com/puranoticia"
+    },
+    {
+        "usuario": "fastcheckcl",
+        "nombre": "Fast Check CL",
+        "url": "https://mobile.x.com/fastcheckcl"
+    },
+    {
+        "usuario": "Camara_cl",
+        "nombre": "Cámara de Diputadas y Diputados de Chile",
+        "url": "https://x.com/Camara_cl"
+    },
+    {
+        "usuario": "mttchile",
+        "nombre": "Ministerio de Transportes y Telecomunicaciones",
+        "url": "https://x.com/mttchile"
+    },
+    {
+        "usuario": "INDChileOficial",
+        "nombre": "IND Chile",
+        "url": "https://x.com/INDChileOficial"
+    },
+    {
+        "usuario": "enelchile",
+        "nombre": "Enel Chile",
+        "url": "https://x.com/enelchile"
+    },
+    {
+        "usuario": "Carolina_Toha",
+        "nombre": "Carolina Tohá",
+        "url": "https://x.com/Carolina_Toha"
+    },
+    {
+        "usuario": "meteochile_dmc",
+        "nombre": "MeteoChile",
+        "url": "https://x.com/meteochile_dmc"
+    },
+    {
+        "usuario": "EFETrenesChile",
+        "nombre": "EFE Trenes de Chile",
+        "url": "https://mobile.x.com/EFETrenesChile"
+    },
+    {
+        "usuario": "sagchile",
+        "nombre": "SAG Chile",
+        "url": "https://x.com/sagchile"
+    },
+    {
+        "usuario": "ministeriosalud",
+        "nombre": "Ministerio de Salud",
+        "url": "https://x.com/ministeriosalud"
+    },
+    {
+        "usuario": "CNNChile",
+        "nombre": "CNN Chile",
+        "url": "https://x.com/CNNChile"
+    },
+    {
+        "usuario": "chvnoticias",
+        "nombre": "CHV Noticias",
+        "url": "https://x.com/chvnoticias"
+    },
+    {
+        "usuario": "24HorasTVN",
+        "nombre": "24 Horas",
+        "url": "https://x.com/24HorasTVN"
+    },
+    {
+        "usuario": "PublimetroChile",
+        "nombre": "Publimetro Chile",
+        "url": "https://x.com/PublimetroChile"
+    },
+    {
+        "usuario": "Presidencia_cl",
+        "nombre": "Presidencia de Chile",
+        "url": "https://x.com/Presidencia_cl"
+    },
+    {
+        "usuario": "meganoticiascl",
+        "nombre": "Meganoticias",
+        "url": "https://x.com/meganoticiascl"
+    },
+    {
+        "usuario": "uchileradio",
+        "nombre": "Radio Universidad de Chile",
+        "url": "https://x.com/uchileradio"
+    },
+    {
+        "usuario": "DFinanciero",
+        "nombre": "Diario Financiero",
+        "url": "https://x.com/DFinanciero"
+    },
+    {
+        "usuario": "camara_cl",
+        "nombre": "Cámara de Diputadas y Diputados de Chile",
+        "url": "https://x.com/Camara_cl"
+    },
+    {
+        "usuario": "la_segunda",
+        "nombre": "La Segunda",
+        "url": "https://x.com/la_segunda"
+    },
+    {
+        "usuario": "laroja",
+        "nombre": "Selección Chilena (La Roja)",
+        "url": "https://x.com/laroja"
+    },
+    {
+        "usuario": "senado_chile",
+        "nombre": "Senado Chile",
+        "url": "https://x.com/senado_chile"
+    }
+]
