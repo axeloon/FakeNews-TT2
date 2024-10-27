@@ -15,6 +15,7 @@ class Tweet(BaseModel):
     texto: str
     interacciones: str
     imagen: Optional[str]
+    is_false: bool = False
 
 class SearchUserResponse(BaseModel):
     user_data: UserData
