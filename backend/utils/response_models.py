@@ -5,7 +5,7 @@ from typing import List, Optional
 class UserData(BaseModel):
     user_name: str
     verified: bool
-    join_date: str
+    join_date: Optional[str]
     followers_info: dict
 
 class Tweet(BaseModel):
