@@ -32,23 +32,28 @@ async def search_user(
         logger.error(f"Error al buscar usuario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/search_whitelist_users")
-async def search_whitelist_users(
+@router.get("/search_users_list")
+async def search_users_list(
     background_tasks: BackgroundTasks,
+    list_type: str = Query(..., description="Tipo de lista a procesar (whitelist o blacklist)"),
     tweets_len: int = Query(15, description="Cantidad de tweets a procesar"),
     db: Session = Depends(get_db),
     x_scrapper: XScrapper = Depends(XScrapper.get_instance)
 ):
-    logger.info("Iniciando búsqueda de usuarios en whitelist")
+    logger.info(f"Iniciando búsqueda de usuarios en {list_type}")
     try:
-        # Leer archivo whitelist
-        whitelist_path = Path(__file__).parent.parent / "data" / "whitelist_x.json"
-        with open(whitelist_path, 'r', encoding='utf-8') as file:
-            whitelist = json.load(file)
+        # Validar tipo de lista
+        if list_type not in ['whitelist', 'blacklist']:
+            raise HTTPException(status_code=400, detail="El tipo de lista debe ser 'whitelist' o 'blacklist'")
+            
+        # Leer archivo según tipo
+        file_path = Path(__file__).parent.parent / "data" / f"{list_type}_x.json"
+        with open(file_path, 'r', encoding='utf-8') as file:
+            users_list = json.load(file)
         
         results = []
         all_stored_news = []
-        for user in whitelist:
+        for user in users_list:
             try:
                 logger.info(f"Procesando usuario: {user['usuario']}")
                 result = await x_scrapper.search_user(user['usuario'], tweet_limit=tweets_len)
@@ -63,7 +68,7 @@ async def search_whitelist_users(
         # Limpiar carpetas al finalizar
         background_tasks.add_task(FileService.clean_folders, [X_TWEET_IMAGE_PATH])
         
-        return {"message": f"Procesados {len(results)} usuarios exitosamente, se almacenaron {len(all_stored_news)} noticias en la base de datos"}
+        return {"message": f"Procesados {len(results)} usuarios de {list_type} exitosamente, se almacenaron {len(all_stored_news)} noticias en la base de datos"}
     except Exception as e:
-        logger.error(f"Error en proceso de whitelist: {e}")
+        logger.error(f"Error en proceso de {list_type}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
