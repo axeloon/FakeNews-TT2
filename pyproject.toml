@@ -16,6 +16,7 @@ requests = "^2.32.3"
 sqlalchemy = "^2.0.35"
 alembic = "^1.13.2"
 spacy = "^3.8.2"
+pandas = "^2.2.3"
 
 
 [build-system]
