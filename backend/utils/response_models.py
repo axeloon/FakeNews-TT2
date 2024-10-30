@@ -60,3 +60,6 @@ class EmolNoticiaResponse(BaseModel):
 class EmolHistoricoResponse(BaseModel):
     noticias: List[EmolNoticiaResponse]
     total: int
+
+class CsvRequest(BaseModel):
+    csv_path: str
