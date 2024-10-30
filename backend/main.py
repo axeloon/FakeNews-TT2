@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
-from .routes import noticia_routes, x_routes, emol_routes
+from backend.routes import csv_processing_routes, noticia_routes, x_routes, emol_routes
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -23,3 +23,4 @@ app.add_middleware(
 app.include_router(x_routes.router, prefix="/api")
 app.include_router(noticia_routes.router, prefix="/api")
 app.include_router(emol_routes.router, prefix="/api")
+app.include_router(csv_processing_routes.router, prefix="/api")
