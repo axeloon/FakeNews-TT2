@@ -1,7 +1,6 @@
 import spacy
 import logging
 import pandas as pd
-import json
 from typing import Dict, Any
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +21,6 @@ class TextProcessor:
         """Carga el dataset desde un archivo CSV"""
         try:
             self.data = pd.read_csv(csv_path)
-            self.data['title'] = self.data['title'].str.lower()
             self.data['content'] = self.data['content'].str.lower()
             logger.info(f"Datos cargados exitosamente desde {csv_path}")
         except Exception as e:
@@ -36,17 +34,12 @@ class TextProcessor:
 
         logger.info("Iniciando extracción de características del dataset...")
         
-        # Procesar títulos
-        title_features = self.data['title'].apply(self._extract_features_from_text)
-        title_features_df = pd.json_normalize(title_features).add_prefix('title_')
-        logger.info(f"Características del título extraídas exitosamente: {title_features_df.head()}")
-        
         # Procesar contenido
         content_features = self.data['content'].apply(self._extract_features_from_text)
         content_features_df = pd.json_normalize(content_features).add_prefix('content_')
         logger.info(f"Características del contenido extraídas exitosamente: {content_features_df.head()}")
         # Combinar características con datos originales
-        result_df = pd.concat([self.data, title_features_df, content_features_df], axis=1)
+        result_df = pd.concat([self.data, content_features_df], axis=1)
         logger.info("Extracción de características completada.")
         return result_df
 
@@ -90,6 +83,6 @@ class TextProcessor:
             "total": len(stopwords),
             "metadata": {
                 "idioma": "es",
-                "modelo": "spacy"
+                "modelo": "spacy es_core_news_sm"
             }
         }
