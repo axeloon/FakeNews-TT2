@@ -53,9 +53,7 @@ class TextProcessor:
                 "cant_palabras": len(doc),
                 "cant_org": len([ent for ent in doc.ents if ent.label_ == "ORG"]),
                 "cant_personas": len([ent for ent in doc.ents if ent.label_ == "PER"]),
-                "cant_fechas": len([ent for ent in doc.ents if ent.label_ == "DATE"]),
                 "cant_loc": len([ent for ent in doc.ents if ent.label_ == "LOC"]),
-                "cant_eventos": len([ent for ent in doc.ents if ent.label_ == "EVENT"]),
                 "f_adjetivos": len([token for token in doc if token.pos_ == "ADJ"]) / len(doc) if len(doc) > 0 else 0,
                 "f_verbos": len([token for token in doc if token.pos_ == "VERB"]) / len(doc) if len(doc) > 0 else 0,
                 "f_sustantivos": len([token for token in doc if token.pos_ == "NOUN"]) / len(doc) if len(doc) > 0 else 0,
@@ -65,7 +63,6 @@ class TextProcessor:
                 "f_stopwords": len([token for token in doc if token.is_stop]) / len(doc) if len(doc) > 0 else 0,
                 "f_puntuacion": len([token for token in doc if token.is_punct]) / len(doc) if len(doc) > 0 else 0,
                 "complejidad_lexica": len(set([token.text.lower() for token in doc if not token.is_punct])) / len(doc) if len(doc) > 0 else 0,
-                "longitud_promedio_palabras": sum(len(token.text) for token in doc if not token.is_punct) / len([token for token in doc if not token.is_punct]) if len(doc) > 0 else 0,
                 "diversidad_lexica": len(set([token.text.lower() for token in doc if not token.is_punct])) / len(doc) if len(doc) > 0 else 0
             }
             
