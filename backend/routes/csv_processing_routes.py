@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+import os
+from fastapi import APIRouter, HTTPException, Query
+
 from backend.services.TextProcessingService import TextProcessingService
 from backend.utils.response_models import CsvRequest
 
@@ -21,7 +23,34 @@ async def calculate_statistics(request: CsvRequest):
         return {"message": "Estadísticas calculadas exitosamente", "statistics": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get('/get_correlation')
+async def get_correlation(
+    csv_path: str = Query(None, description="Csv a procesar")
+    ):
+    try:
+        # Calcular la correlación y devolver la ruta de la imagen
+        service = TextProcessingService()
+        image_path = service.calculate_correlation(csv_path)
+        if os.path.exists(image_path):
+            return {"status": "success", "image_path": image_path}
+        else:
+            raise HTTPException(status_code=500, detail="La imagen de correlación no pudo ser creada.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
+@router.get('/generate_graphics')
+async def get_graphics(
+    csv_path: str = Query(None, description="Csv a procesar")
+    ):
+    try:
+        # Generar gráficos para cada columna seleccionada
+        service = TextProcessingService()
+        service.generate_graphics(csv_path)
+        return {"status": "success", "message": "Gráficos generados exitosamente."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/dump_stopwords")
 async def dump_stopwords():
     try:
