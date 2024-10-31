@@ -13,6 +13,15 @@ async def process_csv(request: CsvRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.post("/calculate_statistics")
+async def calculate_statistics(request: CsvRequest):
+    try:
+        service = TextProcessingService()
+        stats = service.calculate_statistics(request.csv_path)
+        return {"message": "Estadísticas calculadas exitosamente", "statistics": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @router.get("/dump_stopwords")
 async def dump_stopwords():
     try:
