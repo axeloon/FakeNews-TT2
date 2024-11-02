@@ -47,6 +47,7 @@ async def get_graphics(
         # Generar gráficos para cada columna seleccionada
         service = TextProcessingService()
         service.generate_graphics(csv_path)
+        service.generate_frequency_graphics(csv_path)
         return {"status": "success", "message": "Gráficos generados exitosamente."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
