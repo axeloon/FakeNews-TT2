@@ -166,7 +166,7 @@ class TextProcessingService:
             frecuencia_columns = [
                 "content_f_adjetivos", "content_f_verbos", "content_f_sustantivos",
                 "content_f_pronombres", "content_f_adverbios", "content_f_determinantes",
-                "content_f_stopwords", "content_f_puntuacion"
+                "content_f_stopwords", "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"
             ]
 
             base_dir = os.path.join(os.path.dirname(csv_path), "img")
