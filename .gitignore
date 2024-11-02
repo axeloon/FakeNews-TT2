@@ -124,6 +124,9 @@ celerybeat.pid
 # VSCode
 .vscode/
 
+# ETL/img
+backend/ETL/img/
+
 # Environments
 .env
 .venv
