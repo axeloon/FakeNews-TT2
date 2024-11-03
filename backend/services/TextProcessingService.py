@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from textblob import TextBlob
 
 from backend.ETL.text_feature_extractor import TextProcessor
 from backend.database.connection import engine
@@ -426,3 +427,73 @@ class TextProcessingService:
         except Exception as e:
             logger.error(f"Error generando boxplot: {str(e)}")
             raise
+
+
+class SentimentAnalysis:
+    def __init__(self, csv_path: str):
+        self.csv_path = csv_path
+        self.data = pd.read_csv(csv_path)
+        # Verificar si la columna 'content' existe en el CSV
+        if 'content' not in self.data.columns:
+            raise ValueError("El archivo CSV debe contener una columna 'content'")
+        # Calcular polaridad y subjetividad para cada texto en la columna 'content'
+        self.data['polarity'] = self.data['content'].apply(self.calculate_polarity)
+        self.data['subjectivity'] = self.data['content'].apply(self.calculate_subjectivity)
+        # Categorizar polaridad y subjetividad
+        self.data['polarity_category'] = self.data['polarity'].apply(self.categorize_polarity)
+        self.data['subjectivity_category'] = self.data['subjectivity'].apply(self.categorize_subjectivity)
+
+    def calculate_polarity(self, text: str) -> float:
+        # Calcular polaridad usando TextBlob
+        return TextBlob(text).sentiment.polarity
+
+    def calculate_subjectivity(self, text: str) -> float:
+        # Calcular subjetividad usando TextBlob
+        return TextBlob(text).sentiment.subjectivity
+
+    def categorize_polarity(self, polarity: float) -> int:
+        if polarity >= 0.5:
+            return 1  # Positivo
+        elif polarity <= -0.5:
+            return -1  # Negativo
+        else:
+            return 0  # Neutral
+
+    def categorize_subjectivity(self, subjectivity: float) -> int:
+        if subjectivity >= 0.6:
+            return 1  # Subjetivo
+        elif subjectivity <= 0.3:
+            return -1  # Objetivo
+        else:
+            return 0  # Neutral
+
+    def plot_histograms(self):
+        base_dir = os.path.join(os.path.dirname(self.csv_path), "img")
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+        # Graficar histograma de polaridad
+        plt.figure(figsize=(10, 6))
+        plt.hist(self.data['polarity'], bins=20, edgecolor='black')
+        plt.title('Histograma Polaridad')
+        plt.xlabel('Polaridad')
+        plt.ylabel('Frecuencia')
+        hist_path_polarity = os.path.join(base_dir, 'histograma_polaridad.png')
+        plt.savefig(hist_path_polarity)
+        plt.close()
+        logger.info(f"Histograma de polaridad guardado en: {hist_path_polarity}")
+
+        # Graficar histograma de subjetividad
+        plt.figure(figsize=(10, 6))
+        plt.hist(self.data['subjectivity'], bins=20, edgecolor='black')
+        plt.title('Histograma Objetividad')
+        plt.xlabel('Objetividad')
+        plt.ylabel('Frecuencia')
+        hist_path_subjectivity = os.path.join(base_dir, 'histograma_objetividad.png')
+        plt.savefig(hist_path_subjectivity)
+        plt.close()
+        logger.info(f"Histograma de objetividad guardado en: {hist_path_subjectivity}")
+
+    def save_csv(self, output_path: str):
+        self.data.to_csv(output_path, index=False)
+        logger.info(f"CSV guardado en: {output_path}")

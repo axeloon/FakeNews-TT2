@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.services.TextProcessingService import TextProcessingService
+from backend.services.TextProcessingService import TextProcessingService, SentimentAnalysis
 from backend.utils.response_models import CsvRequest
 
 router = APIRouter()
@@ -61,6 +61,22 @@ async def filter_csv(request: CsvRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/sentiment_analysis")
+async def sentiment_analysis(request: CsvRequest):
+    try:
+        sentiment_analysis = SentimentAnalysis(request.csv_path)
+        sentiment_analysis.plot_histograms()
+        output_path = request.csv_path.replace("_filtered.csv", "_sentiment_analysis.csv")
+        sentiment_analysis.save_csv(output_path)
+        return {
+            "message": "CSV filtrado exitosamente",
+            "polarity": sentiment_analysis.data['polarity'].tolist(),
+            "subjectivity": sentiment_analysis.data['subjectivity'].tolist(),
+            "polarity_category": sentiment_analysis.data['polarity_category'].tolist(),
+            "subjectivity_category": sentiment_analysis.data['subjectivity_category'].tolist()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/dump_stopwords")
 async def dump_stopwords():
