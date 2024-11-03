@@ -19,6 +19,7 @@ spacy = "^3.8.2"
 pandas = "^2.2.3"
 matplotlib = "^3.9.2"
 seaborn = "^0.13.2"
+textblob = "^0.18.0.post0"
 
 
 [build-system]
