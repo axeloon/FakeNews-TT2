@@ -51,6 +51,16 @@ async def get_graphics(
         return {"status": "success", "message": "Gráficos generados exitosamente."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/filter_csv")
+async def filter_csv(request: CsvRequest):
+    try:
+        service = TextProcessingService()
+        stats = service.filter_data(request.csv_path)
+        return {"message": "CSV filtrado exitosamente", "statistics": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/dump_stopwords")
 async def dump_stopwords():

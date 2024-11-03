@@ -6,6 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from backend.ETL.text_feature_extractor import TextProcessor
+from backend.database.connection import engine
 
 # Configurar el logger
 logging.basicConfig(level=logging.INFO)
@@ -240,6 +241,83 @@ class TextProcessingService:
             logger.info("Generación de gráficos de frecuencia completada exitosamente")
         except Exception as e:
             logger.error(f"Error en la generación de gráficos de frecuencia: {str(e)}")
+            raise
+
+    def filter_data(self, csv_path: str):
+        try:
+            logger.info(f"Cargando datos desde {csv_path}")
+            df = pd.read_csv(csv_path)
+            total_inicial = len(df)
+            estadisticas_filtrado = {}
+
+            # Diccionario de filtros y sus límites
+            filtros = {
+                'content_cant_oraciones': ('<=', 75),
+                'content_cant_palabras': ('<=', 1800),
+                'content_cant_org': ('<=', 5),
+                'content_cant_personas': ('<=', 20),
+                'content_cant_loc': ('<=', 10),
+                'content_f_adjetivos': ('<=', 0.16),
+                'content_f_verbos': ('<=', 0.25),
+                'content_f_sustantivos': ('entre', 0.08, 0.35),
+                'content_f_pronombres': ('<=', 0.13),
+                'content_f_adverbios': ('<=', 0.10),
+                'content_f_determinantes': ('entre', 0.03, 0.23),
+                'content_f_stopwords': ('entre', 0.28, 0.62),
+                'content_f_puntuacion': ('<=', 0.28)
+            }
+
+            # Aplicar cada filtro y registrar estadísticas
+            for columna, condicion in filtros.items():
+                registros_antes = len(df)
+                
+                if condicion[0] == '<=':
+                    df_filtrado = df[df[columna] <= condicion[1]]
+                    eliminados = registros_antes - len(df_filtrado)
+                    estadisticas_filtrado[columna] = {
+                        'eliminados': eliminados,
+                        'porcentaje': round((eliminados/total_inicial) * 100, 2),
+                        'condicion': f'mayor a {condicion[1]}'
+                    }
+                elif condicion[0] == 'entre':
+                    df_filtrado = df[(df[columna] >= condicion[1]) & (df[columna] <= condicion[2])]
+                    eliminados = registros_antes - len(df_filtrado)
+                    estadisticas_filtrado[columna] = {
+                        'eliminados': eliminados,
+                        'porcentaje': round((eliminados/total_inicial) * 100, 2),
+                        'condicion': f'fuera del rango [{condicion[1]}, {condicion[2]}]'
+                    }
+                
+                df = df_filtrado
+
+            # Eliminar la columna 'id' si existe
+            if 'id' in df.columns:
+                df = df.drop(columns=['id'])
+
+            # Guardar el DataFrame en la base de datos
+            df.to_sql(
+                'noticias_redes_sociales_filtered',
+                engine,
+                if_exists='replace',
+                index=False,
+                chunksize=500
+            )
+
+            # Agregar estadísticas totales
+            registros_finales = len(df)
+            total_eliminados = total_inicial - registros_finales
+            estadisticas_filtrado['resumen_total'] = {
+                'registros_iniciales': total_inicial,
+                'registros_finales': registros_finales,
+                'total_eliminados': total_eliminados,
+                'porcentaje_eliminado': round((total_eliminados/total_inicial) * 100, 2)
+            }
+
+            logger.info(f"Datos filtrados guardados exitosamente en la base de datos")
+            return estadisticas_filtrado
+
+        except Exception as e:
+            logger.error(f"Error durante el filtrado de datos: {str(e)}")
             raise
 
     def dump_stopwords(self):
