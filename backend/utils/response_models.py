@@ -63,3 +63,15 @@ class EmolHistoricoResponse(BaseModel):
 
 class CsvRequest(BaseModel):
     csv_path: str
+
+class TrainingResponseModel(BaseModel):
+    name_model: str
+    status: str
+    accuracy: float
+    accuracy_train: float
+    f1_score: float
+    precision: float
+    recall: float
+    message: str
+    feature_importances: Optional[List[float]] = None
+    feature_names: Optional[List[str]] = None
