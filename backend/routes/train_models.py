@@ -23,12 +23,8 @@ async def train_model_with_sentiment():
             )
             
             # Generar y guardar todas las visualizaciones
-            viz.generate_and_save_all(
-                f"visualizations/sentiment_{result.name_model}_train_metrics.csv",
-                f"visualizations/sentiment_{result.name_model}_test_metrics.csv",
-                f"visualizations/sentiment_{result.name_model}_feature_importance.png"
-            )
-            
+            viz.generate_and_save_all(f"visualizations/sentiment/{result.name_model}")
+
             # Guardar gráfico comparativo
             viz.save_comparison_plot(f"visualizations/sentiment_{result.name_model}_comparison.png")
 
@@ -53,12 +49,8 @@ async def train_model_without_sentiment():
             )
             
             # Generar y guardar todas las visualizaciones
-            viz.generate_and_save_all(
-                f"visualizations/no_sentiment{result.name_model}_train_metrics",
-                f"visualizations/no_sentiment_{result.name_model}_test_metrics",
-                f"visualizations/no_sentiment_{result.name_model}_feature_importance.png"
-            )
-            
+            viz.generate_and_save_all(f"visualizations/no_sentiment{result.name_model}")
+
             # Guardar gráfico comparativo
             viz.save_comparison_plot(f"visualizations/no_sentiment_{result.name_model}_comparison.png")
 
