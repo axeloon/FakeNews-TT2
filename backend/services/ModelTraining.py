@@ -15,9 +15,11 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from abc import ABC, abstractmethod
 from typing import List
+from sklearn.inspection import permutation_importance
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 from backend.database.connection import SessionLocal
 from backend.utils.response_models import TrainingResponseModel
@@ -26,6 +28,14 @@ from backend.utils.response_models import TrainingResponseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Definir las columnas de características una vez
+FEATURE_COLUMNS = [
+    "content_cant_oraciones", "content_cant_palabras", "content_cant_org", 
+    "content_cant_personas", "content_cant_loc", "content_f_adjetivos", 
+    "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
+    "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
+    "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"
+]
 
 def create_required_directories():
     """Crea los directorios necesarios para el almacenamiento de modelos y visualizaciones"""
@@ -37,8 +47,6 @@ def create_required_directories():
 
 create_required_directories()
 
-
-# Clase abstracta base para el entrenamiento de modelos
 class ModelTrainer(ABC):
     def __init__(self, db_path, table_name):
         logger.info(f"Inicializando ModelTrainer con db_path: {db_path} y table_name: {table_name}")
@@ -47,14 +55,15 @@ class ModelTrainer(ABC):
         self.data = self.load_data()
         logger.info(f"Datos cargados exitosamente. Tamaño del dataset: {len(self.data)}")
         
-        self.X = self.data[["content_cant_oraciones", "content_cant_palabras", "content_cant_org", 
-                           "content_cant_personas", "content_cant_loc", "content_f_adjetivos", 
-                           "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
-                           "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
-                           "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"]]
+        self.X = self.data[FEATURE_COLUMNS]
         self.y = self.data['is_false']
         self.le = LabelEncoder()
         self.y = self.le.fit_transform(self.y)
+        
+        # Escalar los datos
+        scaler = StandardScaler()
+        self.X = pd.DataFrame(scaler.fit_transform(self.X), columns=FEATURE_COLUMNS)
+        
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             self.X, self.y, test_size=0.2, random_state=42
         )
@@ -96,15 +105,60 @@ class ModelTrainer(ABC):
         
         return metrics
 
+    def calculate_permutation_importance(self, model, X, y):
+        """Calcula la importancia de características usando Permutation Importance"""
+        logger.info("Calculando Permutation Importance...")
+        try:
+            # Asegurarse de que los datos estén en el formato correcto
+            X = pd.DataFrame(X, columns=FEATURE_COLUMNS)
+            y = y if isinstance(y, np.ndarray) else np.array(y)
+            
+            # Convertir predicciones continuas a binarias si es necesario
+            if hasattr(model, 'predict_proba'):
+                scoring = 'roc_auc'  # Utilizar AUC si el modelo soporta predict_proba
+            else:
+                y = (y > 0.5).astype(int)  # Asegurarse de que y sea binario si es necesario
+                scoring = 'f1'  # Cambiar a F1 para mayor sensibilidad
+            
+            # Calcular permutation importance
+            result = permutation_importance(
+                model,
+                X, y,
+                scoring=scoring,  # Especificamos explícitamente el scoring
+                n_repeats=30,  # Aumentar el número de repeticiones para mayor estabilidad
+                random_state=42,
+                n_jobs=-1
+            )
+            
+            importances = result.importances_mean
+            importances = np.where(importances < 0, 0, importances)  # Establecer valores negativos en 0
+            importances = importances / np.sum(importances) if np.sum(importances) != 0 else importances
+            feature_names = FEATURE_COLUMNS
+            
+            logger.info("Permutation Importance calculado exitosamente")
+            return importances, feature_names
+            
+        except Exception as e:
+            logger.error(f"Error al calcular Permutation Importance: {str(e)}")
+            return None, None
+
     def get_feature_importances(self, model, vectorizer=None):
-        """Extrae importancia de características si está disponible"""
+        """Extrae importancia de características usando el método más apropiado"""
         logger.info("Extrayendo importancia de características...")
+        
+        # Para modelos que tienen feature_importances_ nativo
         if hasattr(model, 'feature_importances_'):
-            feature_names = self.X.columns.tolist()  # Usar nombres de columnas del DataFrame
-            logger.info(f"Se encontraron {len(feature_names)} características importantes")
+            feature_names = FEATURE_COLUMNS
             return model.feature_importances_, feature_names
-        logger.info("No se encontraron características importantes para este modelo")
-        return None, None
+            
+        # Para modelos que tienen coef_ (como Logistic Regression)
+        elif hasattr(model, 'coef_'):
+            feature_names = FEATURE_COLUMNS
+            return np.abs(model.coef_[0]), feature_names
+            
+        # Para SVM y Redes Neuronales, usar Permutation Importance
+        else:
+            return self.calculate_permutation_importance(model, self.X_test, self.y_test)
 
     @abstractmethod
     def train_models(self) -> List[TrainingResponseModel]:
@@ -115,6 +169,66 @@ class ModelTrainer(ABC):
         logger.info(f"Guardando modelo en {filename}")
         joblib.dump(model, filename)
         logger.info("Modelo guardado exitosamente")
+
+# Clase específica para entrenar redes neuronales
+class NeuralNetworkTrainer(ModelTrainer):
+    def train_models(self) -> List[TrainingResponseModel]:
+        logger.info("Iniciando entrenamiento de redes neuronales con análisis de sentimiento")
+        results = []
+
+        # Definir la red neuronal
+        self.name_model = "Embeddings + Redes Neuronales"
+        logger.info(f"Entrenando modelo: {self.name_model}")
+
+        def create_nn_model():
+            model = Sequential([
+                Dense(64, activation='relu', input_shape=(len(FEATURE_COLUMNS),)),  # Utilizamos FEATURE_COLUMNS para input_shape
+                Dense(32, activation='relu'),
+                Dense(1, activation='sigmoid')
+            ])
+            model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            return model
+
+        nn_model = KerasClassifier(build_fn=create_nn_model, epochs=5, batch_size=32, verbose=1)
+
+        logger.info("Iniciando entrenamiento de la red neuronal...")
+        nn_model.fit(self.X_train, self.y_train)
+        logger.info("Entrenamiento de red neuronal completado")
+
+        # Evaluar en conjunto de entrenamiento y prueba
+        logger.info("Evaluando red neuronal...")
+        train_scores = nn_model.score(self.X_train, self.y_train)
+        test_scores = nn_model.score(self.X_test, self.y_test)
+        y_pred_nn = (nn_model.predict(self.X_test) > 0.5).astype('int32')
+
+        metrics = {
+            'accuracy_train': train_scores,
+            'accuracy_test': test_scores,
+            'f1': f1_score(self.y_test, y_pred_nn, average='weighted'),
+            'precision': precision_score(self.y_test, y_pred_nn, average='weighted'),
+            'recall': recall_score(self.y_test, y_pred_nn, average='weighted')
+        }
+
+        # Obtener importancia de características usando permutation_importance
+        feature_importances, feature_names = self.calculate_permutation_importance(nn_model.model, self.X_test, self.y_test)
+
+        logger.info("Guardando modelo de red neuronal...")
+        nn_model.model.save('models/nn_embedding_model_sentiment.h5')
+        results.append(TrainingResponseModel(
+            name_model=self.name_model,
+            status="Entrenamiento completado",
+            accuracy_train=metrics['accuracy_train'],
+            accuracy=metrics['accuracy_test'],
+            f1_score=metrics['f1'],
+            precision=metrics['precision'],
+            recall=metrics['recall'],
+            message="El modelo se ha entrenado y guardado exitosamente.",
+            feature_importances=feature_importances.tolist() if feature_importances is not None else None,
+            feature_names=feature_names if feature_names is not None else None
+        ))
+
+        logger.info("Entrenamiento de redes neuronales completado exitosamente")
+        return results
 
 # Clase para el entrenamiento de modelos con análisis de sentimiento
 class SentimentAnalysisModelTrainer(ModelTrainer):
@@ -138,6 +252,11 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
             self.y_train, self.y_test
         )
         
+        # Obtener importancia de características
+        feature_importances, feature_names = self.get_feature_importances(
+            svm_pipeline['svm']
+        )
+
         self.save_model(svm_pipeline, 'models/svm_ngram_model_sentiment.pkl')  # Guardar el modelo
         results.append(TrainingResponseModel(
             name_model=self.name_model,
@@ -148,8 +267,8 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
             precision=metrics['precision'],
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
-            feature_importances=None,  # SVM no proporciona importancia de características
-            feature_names=None
+            feature_importances=feature_importances.tolist() if feature_importances is not None else None,
+            feature_names=feature_names if feature_names is not None else None
         ))
 
         # N-grams + Regresión Logística
@@ -223,55 +342,9 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
         ))
 
         # Embeddings + Redes Neuronales
-        self.name_model = "Embeddings + Redes Neuronales"
-        logger.info(f"Entrenando modelo: {self.name_model}")
-        logger.info("Preparando datos para la red neuronal...")
-        nn_model = Sequential([
-            Dense(64, activation='relu', input_shape=(15,)),  # 15 es el número de características
-            Dense(32, activation='relu'),
-            Dense(1, activation='sigmoid')
-        ])
-
-        nn_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        logger.info("Iniciando entrenamiento de la red neuronal...")
-        history = nn_model.fit(
-            self.X_train, 
-            self.y_train, 
-            epochs=5, 
-            batch_size=32, 
-            validation_split=0.1,
-            verbose=1
-        )
-        logger.info("Entrenamiento de red neuronal completado")
-
-        # Evaluar en conjunto de entrenamiento y prueba
-        logger.info("Evaluando red neuronal...")
-        train_scores = nn_model.evaluate(self.X_train, self.y_train, verbose=0)
-        test_scores = nn_model.evaluate(self.X_test, self.y_test, verbose=0)
-        y_pred_nn = (nn_model.predict(self.X_test) > 0.5).astype('int32')
-
-        metrics = {
-            'accuracy_train': train_scores[1],
-            'accuracy_test': test_scores[1],
-            'f1': f1_score(self.y_test, y_pred_nn, average='weighted'),
-            'precision': precision_score(self.y_test, y_pred_nn, average='weighted'),
-            'recall': recall_score(self.y_test, y_pred_nn, average='weighted')
-        }
-
-        logger.info("Guardando modelo de red neuronal...")
-        nn_model.save('models/nn_embedding_model_sentiment.h5')
-        results.append(TrainingResponseModel(
-            name_model=self.name_model,
-            status="Entrenamiento completado",
-            accuracy_train=metrics['accuracy_train'],
-            accuracy=metrics['accuracy_test'],
-            f1_score=metrics['f1'],
-            precision=metrics['precision'],
-            recall=metrics['recall'],
-            message="El modelo se ha entrenado y guardado exitosamente.",
-            feature_importances=None,  # Las redes neuronales no proporcionan importancia de características directamente
-            feature_names=None
-        ))
+        nn_trainer = NeuralNetworkTrainer(self.db_path, self.table_name)  # Usar la nueva clase
+        nn_results = nn_trainer.train_models()  # Entrenar la red neuronal
+        results.extend(nn_results)  # Agregar resultados a la lista
 
         logger.info("Entrenamiento de todos los modelos completado exitosamente")
         return results
@@ -297,6 +370,10 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
             self.y_train, self.y_test
         )
         
+        feature_importances, feature_names = self.get_feature_importances(
+            svm_pipeline['svm']
+        )
+
         self.save_model(svm_pipeline, 'models/svm_ngram_model_no_sentiment.pkl')
         results.append(TrainingResponseModel(
             name_model=self.name_model,
@@ -307,8 +384,8 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
             precision=metrics['precision'],
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
-            feature_importances=None,
-            feature_names=None
+            feature_importances=feature_importances.tolist() if feature_importances is not None else None,
+            feature_names=feature_names if feature_names is not None else None
         ))
 
         # N-grams + Regresión Logística
@@ -382,53 +459,9 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
         ))
 
         # Embeddings + Redes Neuronales
-        self.name_model = "Embeddings + Redes Neuronales"
-        logger.info(f"Entrenando modelo: {self.name_model}")
-        logger.info("Preparando datos para la red neuronal...")
-        nn_model = Sequential([
-            Dense(64, activation='relu', input_shape=(15,)),  # 15 es el número de características
-            Dense(32, activation='relu'),
-            Dense(1, activation='sigmoid')
-        ])
-
-        nn_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-        logger.info("Iniciando entrenamiento de la red neuronal...")
-        history = nn_model.fit(
-            self.X_train, 
-            self.y_train, 
-            epochs=5, 
-            batch_size=32, 
-            validation_split=0.1,
-            verbose=1
-        )
-        logger.info("Entrenamiento de red neuronal completado")
-
-        train_scores = nn_model.evaluate(self.X_train, self.y_train, verbose=0)
-        test_scores = nn_model.evaluate(self.X_test, self.y_test, verbose=0)
-        y_pred_nn = (nn_model.predict(self.X_test) > 0.5).astype('int32')
-
-        metrics = {
-            'accuracy_train': train_scores[1],
-            'accuracy_test': test_scores[1],
-            'f1': f1_score(self.y_test, y_pred_nn, average='weighted'),
-            'precision': precision_score(self.y_test, y_pred_nn, average='weighted'),
-            'recall': recall_score(self.y_test, y_pred_nn, average='weighted')
-        }
-
-        logger.info("Guardando modelo de red neuronal...")
-        nn_model.save('models/nn_embedding_model_no_sentiment.h5')
-        results.append(TrainingResponseModel(
-            name_model=self.name_model,
-            status="Entrenamiento completado",
-            accuracy_train=metrics['accuracy_train'],
-            accuracy=metrics['accuracy_test'],
-            f1_score=metrics['f1'],
-            precision=metrics['precision'],
-            recall=metrics['recall'],
-            message="El modelo se ha entrenado y guardado exitosamente.",
-            feature_importances=None,
-            feature_names=None
-        ))
+        nn_trainer = NeuralNetworkTrainer(self.db_path, self.table_name)  # Usar la nueva clase
+        nn_results = nn_trainer.train_models()  # Entrenar la red neuronal
+        results.extend(nn_results)  # Agregar resultados a la lista
 
         logger.info("Entrenamiento de todos los modelos completado exitosamente")
         return results
