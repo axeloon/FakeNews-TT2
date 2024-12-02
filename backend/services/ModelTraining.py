@@ -23,19 +23,11 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 from backend.database.connection import SessionLocal
 from backend.utils.response_models import TrainingResponseModel
+from backend.constant import FEATURE_COLUMNS
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Definir las columnas de características una vez
-FEATURE_COLUMNS = [
-    "content_cant_oraciones", "content_cant_palabras", "content_cant_org", 
-    "content_cant_personas", "content_cant_loc", "content_f_adjetivos", 
-    "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
-    "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
-    "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"
-]
 
 def create_required_directories():
     """Crea los directorios necesarios para el almacenamiento de modelos y visualizaciones"""
