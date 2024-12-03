@@ -1,8 +1,12 @@
+import matplotlib
+matplotlib.use('Agg')  # Configurar backend no interactivo
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 import os
 import logging
+from typing import List
+from backend.utils.response_models import TrainingResponseModel
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -13,254 +17,209 @@ class TrainingResultsVisualization:
         self.accuracy_test = accuracy_test
         self.feature_importances = feature_importances
         self.feature_names = feature_names
-
-    def generate_file_paths(self, base_path):
-        """Genera rutas de archivo para las visualizaciones y crea las subcarpetas necesarias"""
-        metrics_filename = os.path.join(base_path, f"{self.name_model.replace(' ', '_')}_metrics")
-        importance_filename = os.path.join(base_path, f"{self.name_model.replace(' ', '_')}_feature_importance")
-        comparison_filename = os.path.join(base_path, f"{self.name_model.replace(' ', '_')}_comparison")
         
-        # Crear las subcarpetas necesarias si no están creadas
-        os.makedirs(base_path, exist_ok=True)
-        
-        return metrics_filename, importance_filename, comparison_filename
-
-    def generate_accuracy_tables(self, metrics_filename):
-        """Genera una tabla similar a la mostrada en la imagen"""
-        # Crear DataFrame con el formato deseado
-        data = {
-            'Modelo': [self.name_model],
-            'Entrenamiento': [f"{self.accuracy_train:.2f}"],
-            'Prueba': [f"{self.accuracy_test:.2f}"]
-        }
-        df = pd.DataFrame(data)
-
-        # Configurar el estilo de la tabla
-        fig, ax = plt.subplots(figsize=(10, 2))
-        ax.axis('off')
-        
-        # Crear tabla con estilo mejorado
-        table = ax.table(
-            cellText=df.values,
-            colLabels=df.columns,
-            cellLoc='center',
-            loc='center',
-            colColours=['#f2f2f2'] * len(df.columns),
-            cellColours=[['#ffffff'] * len(df.columns)]
-        )
-        
-        # Ajustar el estilo de la tabla
-        table.auto_set_font_size(False)
-        table.set_fontsize(10)
-        table.scale(1.2, 1.5)
-        
-        # Ajustar bordes y colores
-        for cell in table._cells:
-            table._cells[cell].set_edgecolor('#cccccc')
-            table._cells[cell].set_linewidth(1)
-        
-        # Guardar la tabla
-        plt.savefig(f"{metrics_filename}.png", 
-                    bbox_inches='tight', 
-                    dpi=300,
-                    facecolor='white',
-                    edgecolor='none',
-                    pad_inches=0.1)
-        plt.close()
-        
-        return fig
-
-    def generate_feature_importance_plot(self):
-        """Genera un gráfico de barras con la importancia de las variables"""
-        plt.figure(figsize=(10, 6))
-        
-        if self.feature_importances is None or self.feature_names is None:
-            # Mensaje informativo si no hay importancias
-            plt.text(0.5, 0.5,
-                     f'Modelo: {self.name_model}\n\n'
-                     'No se pudieron calcular las importancias de características.\n'
-                     'Se recomienda usar técnicas como Permutation Importance.',
-                     horizontalalignment='center',
-                     verticalalignment='center',
-                     transform=plt.gca().transAxes,
-                     fontsize=12,
-                     bbox=dict(facecolor='#e49edd', alpha=0.1))
-            plt.axis('off')
-        else:
-            # Tomar solo las top 15 variables más importantes
-            indices = np.argsort(self.feature_importances)[-15:][::-1]
-            sorted_importances = np.array(self.feature_importances)[indices]
-            sorted_features = np.array(self.feature_names)[indices]
-            
-            plt.barh(sorted_features, sorted_importances, align='center')
-            plt.xlabel('Importancia')
-            plt.title(f'Top 15 variables más importantes - {self.name_model}')
-            plt.gca().invert_yaxis()
-        
-        plt.tight_layout()
-        return plt.gcf()
-
-    def save_accuracy_tables_to_csv(self, base_path):
-        """Guarda la tabla de métricas en un archivo CSV"""
-        metrics_filename, _, _ = self.generate_file_paths(base_path)
-        self.generate_accuracy_tables(metrics_filename)
-
-    def save_feature_importance_plot(self, base_path):
-        """Guarda el gráfico de importancia de variables en un archivo"""
-        _, importance_filename, _ = self.generate_file_paths(base_path)
-        if self.feature_importances is not None and self.feature_names is not None:
-            fig = self.generate_feature_importance_plot()
-            fig.savefig(f"{importance_filename}.png", bbox_inches='tight', dpi=300)
-            plt.close(fig)
-
     def generate_and_save_all(self, base_path):
         """Genera y guarda todas las visualizaciones"""
         try:
             logger.info(f"Generando visualizaciones en {base_path}")
-            
-            # Crear directorios si no existen
             os.makedirs(base_path, exist_ok=True)
             
-            # Generar y guardar tabla de métricas
-            metrics_filename, importance_filename, comparison_filename = self.generate_file_paths(base_path)
+            # Generar tabla de métricas
             logger.info("Generando tabla de métricas...")
-            self.generate_accuracy_tables(metrics_filename)
+            self._generate_metrics_table(os.path.join(base_path, "metrics_table.png"))
             
-            # Generar y guardar gráfico de importancia de características
+            # Generar gráfico de importancia de características si está disponible
             if self.feature_importances is not None and self.feature_names is not None:
                 logger.info("Generando gráfico de importancia de características...")
-                self.save_feature_importance_plot(base_path)
+                self._generate_feature_importance_plot(os.path.join(base_path, "feature_importance.png"))
             else:
                 logger.warning("No hay datos de importancia de características disponibles")
             
-            # Generar y guardar gráfico comparativo
+            # Generar gráfico comparativo
             logger.info("Generando gráfico comparativo...")
-            self.save_comparison_plot(base_path)
+            self._generate_comparison_plot(os.path.join(base_path, "comparison.png"))
             
             logger.info(f"Todas las visualizaciones generadas exitosamente en {base_path}")
+            plt.close('all')  # Cerrar todas las figuras
+            
         except Exception as e:
-            logger.error(f"Error al generar visualizaciones: {str(e)}")
+            logger.error(f"Error generando visualizaciones: {str(e)}")
+            plt.close('all')  # Asegurarse de cerrar las figuras incluso si hay error
             raise
 
     @staticmethod
-    def generate_fine_tuning_results_table(fine_tuning_results, base_path):
-        """Genera una tabla comparativa con todos los resultados del fine-tuning"""
-        plt.figure(figsize=(8, 4))  # Reducido el tamaño vertical
-        
-        # Extraer datos de los resultados
-        model_names = []
-        train_accuracies = []
-        test_accuracies = []
-        
-        for result in fine_tuning_results:
-            model_names.append(result.name_model)
-            train_accuracies.append(result.accuracy_train)
-            test_accuracies.append(result.accuracy)
-        
-        # Crear tabla
-        cell_text = [
-            [f"{train:.2f}", f"{test:.2f}"]
-            for train, test in zip(train_accuracies, test_accuracies)
-        ]
-        
-        table = plt.table(
-            cellText=cell_text,
-            rowLabels=model_names,
-            colLabels=['Entrenamiento', 'Prueba'],
-            loc='center',
-            cellLoc='center'
-        )
-        
-        # Personalizar apariencia
-        table.auto_set_font_size(False)
-        table.set_fontsize(9)
-        table.scale(1.2, 1.2)  # Reducida la escala vertical
-        
-        # Configurar colores
-        for i in range(len(model_names)):
-            table[(i+1, 0)].set_facecolor('#e49edd')
-            table[(i+1, 1)].set_facecolor('#e49edd')
-        
-        # Configurar título
-        plt.title('Exactitud en Fine-tuning', pad=10)  # Reducido el padding
-        plt.axis('off')
-        
-        # Guardar figura con menos espacio en blanco
-        plt.savefig(
-            f"{base_path}/fine_tuning_results_table.png",
-            bbox_inches='tight',
-            dpi=300,
-            facecolor='white',
-            edgecolor='none',
-            pad_inches=0.1  # Reducido el padding exterior
-        )
-        plt.close()
+    def generate_fine_tuning_results_table(results: List[TrainingResponseModel], save_path: str):
+        try:
+            # Verificar que hay resultados para procesar
+            if not results:
+                logger.warning("No hay resultados para generar la tabla")
+                return
+                
+            plt.style.use('default')
+            
+            # Crear DataFrame con los resultados
+            data = {
+                'Modelo': [],
+                'Entrenamiento': [],
+                'Prueba': [],
+                'F1-Score': []  # Añadimos F1-Score para más información
+            }
+            
+            for result in results:
+                # Limpiar el nombre del modelo para mejor visualización
+                model_name = result.name_model.replace(" (Fine-Tuned)", "").replace("_", " ")
+                data['Modelo'].append(model_name)
+                data['Entrenamiento'].append(f"{result.accuracy_train:.4f}")
+                data['Prueba'].append(f"{result.accuracy:.4f}")
+                data['F1-Score'].append(f"{result.f1_score:.4f}")
+            
+            df = pd.DataFrame(data)
+            
+            # Crear figura y tabla
+            fig, ax = plt.subplots(figsize=(12, len(df) + 2))
+            ax.axis('tight')
+            ax.axis('off')
+            
+            # Crear tabla con colores alternados
+            table = ax.table(cellText=df.values,
+                           colLabels=df.columns,
+                           cellLoc='center',
+                           loc='center',
+                           colColours=['#e6e6e6']*len(df.columns),
+                           cellColours=[['#f2f2f2' if i%2==0 else 'white']*len(df.columns) 
+                                      for i in range(len(df))])
+            
+            # Ajustar formato
+            table.auto_set_font_size(False)
+            table.set_fontsize(9)
+            table.scale(1.2, 1.5)
+            
+            # Determinar el título basado en el path
+            title = "Resultados de Fine-tuning"
+            if "no_sentiment" in save_path:
+                title += " (Sin Análisis de Sentimiento)"
+            else:
+                title += " (Con Análisis de Sentimiento)"
+                
+            plt.title(title, pad=20)
+            
+            # Asegurar que el directorio existe
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            
+            # Guardar figura
+            plt.savefig(os.path.join(save_path, 'fine_tuning_results.png'),
+                       bbox_inches='tight',
+                       dpi=300,
+                       facecolor='white')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando tabla de resultados: {str(e)}")
+            plt.close('all')
+            # No levantar la excepción para permitir que el proceso continúe
 
-    def generate_comparison_plot(self):
-        """Genera un gráfico comparativo de exactitud entre entrenamiento y prueba"""
-        plt.figure(figsize=(8, 6))
-        metrics = ['Exactitud']
-        train_values = [self.accuracy_train]
-        test_values = [self.accuracy_test]
+    def _generate_metrics_table(self, save_path):
+        try:
+            if not os.path.exists(os.path.dirname(save_path)):
+                os.makedirs(os.path.dirname(save_path))
+                
+            plt.style.use('default')
+            
+            # Crear DataFrame con los datos
+            data = {
+                'Métrica': ['Accuracy (Train)', 'Accuracy (Test)', 'F1-Score'],
+                'Valor': [
+                    f"{self.accuracy_train:.4f}", 
+                    f"{self.accuracy_test:.4f}",
+                    f"{getattr(self, 'f1_score', 0.0):.4f}"
+                ]
+            }
+            df = pd.DataFrame(data)
+            
+            # Crear figura y tabla
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.axis('tight')
+            ax.axis('off')
+            
+            table = ax.table(cellText=df.values,
+                           colLabels=df.columns,
+                           cellLoc='center',
+                           loc='center',
+                           colColours=['#e6e6e6']*2,
+                           cellColours=[['#f2f2f2', 'white']]*len(df))
+            
+            table.auto_set_font_size(False)
+            table.set_fontsize(9)
+            table.scale(1.2, 1.5)
+            
+            plt.title(f"Métricas para {self.name_model}", pad=20)
+            
+            # Guardar figura
+            plt.savefig(save_path,
+                       bbox_inches='tight',
+                       dpi=300,
+                       facecolor='white')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando tabla de métricas: {str(e)}")
+            plt.close('all')
 
-        x = np.arange(len(metrics))
-        width = 0.35
+    def _generate_feature_importance_plot(self, save_path):
+        try:
+            plt.style.use('default')
+            
+            if self.feature_importances is not None and self.feature_names is not None:
+                # Convertir a numpy arrays si no lo son
+                importances = np.array(self.feature_importances)
+                names = np.array(self.feature_names)
+                
+                # Ordenar por importancia
+                sorted_idx = np.argsort(importances)
+                pos = np.arange(len(sorted_idx)) + .5
+                
+                fig, ax = plt.subplots(figsize=(10, 6))
+                ax.barh(pos, importances[sorted_idx])
+                ax.set_yticks(pos)
+                ax.set_yticklabels(names[sorted_idx])
+                ax.set_xlabel('Importancia Relativa')
+                ax.set_title(f'Importancia de Características - {self.name_model}')
+                
+                plt.tight_layout()
+                plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+                plt.close()
+                
+        except Exception as e:
+            logger.error(f"Error generando gráfico de importancia: {str(e)}")
+            plt.close('all')
+            raise
 
-        plt.bar(x - width/2, train_values, width, label='Entrenamiento')
-        plt.bar(x + width/2, test_values, width, label='Prueba')
-
-        plt.ylabel('Valor')
-        plt.title(f'Comparación de métricas - {self.name_model}')
-        plt.xticks(x, metrics)
-        plt.legend()
-        plt.tight_layout()
-        
-        return plt.gcf()
-
-    def save_comparison_plot(self, base_path):
-        """Guarda el gráfico comparativo en un archivo"""
-        _, _, comparison_filename = self.generate_file_paths(base_path)
-        fig = self.generate_comparison_plot()
-        fig.savefig(f"{comparison_filename}.png", bbox_inches='tight', dpi=300)
-        plt.close(fig)
-
-    def generate_fine_tuning_comparison(self, original_accuracy_train, original_accuracy_test,
-                                      fine_tuned_accuracy_train, fine_tuned_accuracy_test,
-                                      save_path):
-        """Genera un gráfico comparativo entre el modelo original y el fine-tuned"""
-        plt.figure(figsize=(10, 6))
-        
-        # Configurar las barras
-        labels = ['Entrenamiento', 'Prueba']
-        original_values = [original_accuracy_train, original_accuracy_test]
-        fine_tuned_values = [fine_tuned_accuracy_train, fine_tuned_accuracy_test]
-        
-        x = np.arange(len(labels))
-        width = 0.35
-        
-        # Crear las barras
-        plt.bar(x - width/2, original_values, width, label='Modelo Original', color='#e49edd')
-        plt.bar(x + width/2, fine_tuned_values, width, label='Modelo Ajustado', color='#9ee4dd')
-        
-        # Personalizar el gráfico
-        plt.ylabel('Exactitud')
-        plt.title(f'Comparación de Exactitud - {self.name_model}')
-        plt.xticks(x, labels)
-        plt.legend()
-        
-        # Agregar valores sobre las barras
-        def autolabel(rects):
-            for rect in rects:
-                height = rect.get_height()
-                plt.text(rect.get_x() + rect.get_width()/2., height,
-                        f'{height:.2f}',
-                        ha='center', va='bottom')
-        
-        autolabel(plt.gca().patches[:2])
-        autolabel(plt.gca().patches[2:])
-        
-        # Ajustar el diseño y guardar
-        plt.tight_layout()
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        plt.close()
+    def _generate_comparison_plot(self, save_path):
+        try:
+            plt.style.use('default')
+            
+            metrics = ['Train', 'Test']
+            values = [self.accuracy_train, self.accuracy_test]
+            
+            fig, ax = plt.subplots(figsize=(8, 5))
+            bars = ax.bar(metrics, values, color=['#2ecc71', '#3498db'])
+            
+            # Añadir valores sobre las barras
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'{height:.4f}',
+                       ha='center', va='bottom')
+            
+            ax.set_ylim(0, 1.0)
+            ax.set_title(f'Comparación de Accuracy - {self.name_model}')
+            ax.set_ylabel('Accuracy')
+            
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando gráfico comparativo: {str(e)}")
+            plt.close('all')
+            raise
