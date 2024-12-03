@@ -2,11 +2,12 @@ import logging
 import joblib
 import os
 import numpy as np
-from sklearn.model_selection import GridSearchCV, StratifiedKFold
+import json
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingClassifier
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model, Sequential
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.pipeline import Pipeline
 from abc import ABC, abstractmethod
@@ -16,7 +17,14 @@ from backend.utils.response_models import TrainingResponseModel
 from sklearn.inspection import permutation_importance
 from backend.constant import FEATURE_COLUMNS
 import pandas as pd
-from tensorflow.keras.callbacks import EarlyStopping
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from sklearn.utils.class_weight import compute_class_weight
+from .pipelines.svm_pipeline import SVMPipeline
+from .pipelines.lr_pipeline import LogisticRegressionPipeline
+from .pipelines.boosting_pipeline import BoostingPipeline
+from .pipelines.nn_pipeline import NeuralNetworkPipeline
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -135,117 +143,130 @@ class FineTuningModelTrainer(ABC):
             return None, None
 
 class SentimentFineTuningModelTrainer(FineTuningModelTrainer):
+    def __init__(self, model_paths: List[str], X_train, X_test, y_train, y_test):
+        super().__init__(model_paths, X_train, X_test, y_train, y_test)
+        try:
+            # Cargar métricas originales
+            with open('backend/data/modelos_originales.json', 'r', encoding='utf-8') as f:
+                self.original_metrics = {
+                    model['name_model']: model 
+                    for model in json.load(f)
+                }
+            logger.info("Métricas originales cargadas correctamente")
+        except Exception as e:
+            logger.error(f"Error al cargar métricas originales: {str(e)}")
+            raise
+
     def fine_tune_models(self) -> List[TrainingResponseModel]:
-        logger.info("Iniciando fine-tuning de modelos con análisis de sentimiento")
-        results = []
-
-        for model_path in self.model_paths:
-            try:
-                model = self.load_model(model_path)
-                model_name = os.path.basename(model_path).split('.')[0]
-                logger.info(f"Fine-tuning del modelo: {model_name}")
-
-                feature_importances = None
-                feature_names = None
-
-                if isinstance(model, Pipeline):
-                    best_model = self._fine_tune_pipeline(model, model_name)
-                    
-                    # Extraer feature importances según el tipo de modelo
-                    if 'svm' in model.named_steps:
-                        # Para SVM usamos get_feature_importances que llamará a calculate_permutation_importance
-                        feature_importances, feature_names = self.get_feature_importances(best_model.named_steps['svm'])
-                        
-                    elif 'lr' in model.named_steps:
-                        feature_importances, feature_names = self.get_feature_importances(best_model.named_steps['lr']) 
-                        
-                    elif 'boosting' in model.named_steps:
-                        feature_importances, feature_names = self.get_feature_importances(best_model.named_steps['boosting'])
-                        
-                elif model_path.endswith('.h5'):
-                    best_model = self._fine_tune_neural_network(model)
-                    feature_importances, feature_names = self.get_feature_importances(best_model)
-                    
-                else:
-                    logger.warning(f"Tipo de modelo no soportado para fine-tuning: {model_name}")
-                    continue
-
-                metrics = self.evaluate_model(best_model)
-                new_filename = f'models/fine_tuned/{model_name}_fine_tuned{"_sentiment" if "sentiment" in model_path else ""}.{model_path.split(".")[-1]}'
-                self.save_model(best_model, new_filename)
-
-                # Crear el resultado con el mismo formato que el entrenamiento original
-                result = TrainingResponseModel(
-                    name_model=f"{model_name} (Fine-Tuned)",  # Agregar indicador de fine-tuning al nombre
-                    status="Fine-tuning completado",
-                    accuracy_train=metrics['accuracy_train'],
-                    accuracy=metrics['accuracy_test'],
-                    f1_score=metrics['f1'],
-                    precision=metrics['precision'],
-                    recall=metrics['recall'],
-                    message="El modelo se ha mejorado y guardado exitosamente.",
-                    feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-                    feature_names=feature_names if feature_names is not None else None
-                )
-                
-                results.append(result)
-                logger.info(f"Fine-tuning completado exitosamente para {model_name}")
-
-            except Exception as e:
-                logger.error(f"Error en fine-tuning del modelo {model_path}: {str(e)}")
-                continue
-
-        logger.info("Fine-tuning de todos los modelos completado exitosamente")
-        return results
-
-    def _fine_tune_pipeline(self, model, model_name):
-        """Realiza fine-tuning específico para modelos Pipeline"""
-        if 'svm' in model.named_steps:
-            param_grid = {'svm__C': [0.1, 1, 10, 50, 100], 'svm__kernel': ['linear', 'rbf', 'poly']}
-        elif 'lr' in model.named_steps:
-            param_grid = {'lr__C': [0.01, 0.1, 1, 10, 100], 'lr__max_iter': [1000, 1500, 2000]}
-        elif 'boosting' in model.named_steps:
-            param_grid = {
-                'boosting__n_estimators': [50, 100, 200],  # Reducir el número de estimadores para evitar sobreajuste
-                'boosting__learning_rate': [0.01, 0.05, 0.1],  # Reducir learning rate para evitar sobreajuste
-                'boosting__max_depth': [3, 4],  # Reducir la profundidad máxima para mejorar la generalización
-                'boosting__min_samples_split': [20, 30],  # Aumentar min_samples_split para regularización
-                'boosting__min_samples_leaf': [8, 10],  # Aumentar min_samples_leaf para regularización
-                'boosting__subsample': [0.7, 0.8, 0.9]  # Añadir subsampling para reducir el sobreajuste
-            }
-        else:
-            raise ValueError(f"No se encontró un paso reconocible para fine-tuning en el modelo: {model_name}")
-
-        grid_search = GridSearchCV(model, param_grid, cv=StratifiedKFold(n_splits=10), n_jobs=-1, verbose=2, scoring='f1_weighted')
-        grid_search.fit(self.X_train, self.y_train)
-        return grid_search.best_estimator_
-
-    def _fine_tune_neural_network(self, model):
-        """Realiza fine-tuning específico para redes neuronales con Early Stopping"""
-        early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.fit(self.X_train, self.y_train, epochs=50, batch_size=32, validation_split=0.2, callbacks=[early_stopping], verbose=1)
-        return model
-
-    def evaluate_model(self, model):
-        """Evalúa el modelo en conjuntos de entrenamiento y prueba."""
-        y_pred_train = model.predict(self.X_train)
-        y_pred_test = model.predict(self.X_test)
-
-        # Asegurarse de que las predicciones sean de tipo binario si es necesario
-        if y_pred_train.ndim > 1:
-            y_pred_train = np.argmax(y_pred_train, axis=1)
-        if y_pred_test.ndim > 1:
-            y_pred_test = np.argmax(y_pred_test, axis=1)
-
-        metrics = {
-            'accuracy_train': accuracy_score(self.y_train, y_pred_train),
-            'accuracy_test': accuracy_score(self.y_test, y_pred_test),
-            'f1': f1_score(self.y_test, y_pred_test, average='weighted'),
-            'precision': precision_score(self.y_test, y_pred_test, average='weighted', zero_division=1),
-            'recall': recall_score(self.y_test, y_pred_test, average='weighted', zero_division=1)
+        logger.info("Iniciando fine-tuning de modelos")
+        responses = []
+        
+        pipeline_map = {
+            'models/svm_ngram_model_sentiment.pkl': 
+                (SVMPipeline, "N-grams + SVM"),
+            'models/lr_ngram_model_sentiment.pkl': 
+                (LogisticRegressionPipeline, "N-grams + Regresión Logística"),
+            'models/boosting_char_ngram_model_sentiment.pkl': 
+                (BoostingPipeline, "Boosting (BO) con n-grams de caracteres"),
+            'models/nn_embedding_model_sentiment.h5': 
+                (NeuralNetworkPipeline, "Embeddings + Redes Neuronales")
         }
 
-        return metrics
+        for model_file in self.model_paths:
+            try:
+                pipeline_class, model_name = pipeline_map.get(model_file, (None, None))
+                if not pipeline_class:
+                    logger.error(f"No se encontró pipeline para el modelo: {model_file}")
+                    continue
+                
+                logger.info(f"Iniciando fine-tuning para {model_name}")
+                pipeline = pipeline_class(self.X_train, self.X_test, self.y_train, self.y_test)
+                fine_tuned_model = pipeline.fine_tune()
+                
+                # Evaluar el modelo
+                y_pred_train = fine_tuned_model.predict(self.X_train)
+                y_pred_test = fine_tuned_model.predict(self.X_test)
+                
+                # Asegurarse de que las predicciones sean binarias
+                if len(y_pred_train.shape) > 1:
+                    y_pred_train = (y_pred_train > 0.5).astype(int)
+                if len(y_pred_test.shape) > 1:
+                    y_pred_test = (y_pred_test > 0.5).astype(int)
+                
+                metrics = {
+                    'accuracy_train': accuracy_score(self.y_train, y_pred_train),
+                    'accuracy_test': accuracy_score(self.y_test, y_pred_test),
+                    'f1': f1_score(self.y_test, y_pred_test, average='weighted'),
+                    'precision': precision_score(self.y_test, y_pred_test, average='weighted'),
+                    'recall': recall_score(self.y_test, y_pred_test, average='weighted')
+                }
+                
+                # Obtener métricas originales
+                original_metrics = self.original_metrics.get(model_name, {})
+                
+                # Verificar si el modelo mejoró
+                if metrics['f1'] > original_metrics.get('f1_score', 0):
+                    # Guardar modelo fine-tuned
+                    fine_tuned_path = os.path.join(
+                        "backend", "models", "fine_tuned",
+                        f"{os.path.splitext(os.path.basename(model_file))[0]}_fine_tuned{os.path.splitext(model_file)[1]}"
+                    )
+                    os.makedirs(os.path.dirname(fine_tuned_path), exist_ok=True)
+                    
+                    if model_file.endswith('.h5'):
+                        fine_tuned_model.save(fine_tuned_path)
+                    else:
+                        joblib.dump(fine_tuned_model, fine_tuned_path)
+                    
+                    # Calcular importancia de características
+                    if hasattr(fine_tuned_model, 'feature_importances_'):
+                        feature_importances = fine_tuned_model.feature_importances_
+                        feature_names = FEATURE_COLUMNS
+                    else:
+                        feature_importances, feature_names = self.calculate_permutation_importance(
+                            fine_tuned_model, self.X_test, self.y_test
+                        )
+                    
+                    response = TrainingResponseModel(
+                        name_model=f"{model_name} (Fine-Tuned)",
+                        status="Fine-tuning completado",
+                        accuracy=metrics['accuracy_test'],
+                        accuracy_train=metrics['accuracy_train'],
+                        f1_score=metrics['f1'],
+                        precision=metrics['precision'],
+                        recall=metrics['recall'],
+                        message="El modelo ha mejorado y se ha guardado exitosamente.",
+                        feature_importances=feature_importances.tolist() if feature_importances is not None else None,
+                        feature_names=feature_names if feature_names is not None else None
+                    )
+                else:
+                    response = TrainingResponseModel(
+                        name_model=model_name,
+                        status="Fine-tuning no mejoró el modelo",
+                        accuracy=original_metrics['accuracy'],
+                        accuracy_train=original_metrics['accuracy_train'],
+                        f1_score=original_metrics['f1_score'],
+                        precision=original_metrics['precision'],
+                        recall=original_metrics['recall'],
+                        message="Se mantiene el modelo original por mejor rendimiento.",
+                        feature_importances=original_metrics['feature_importances'],
+                        feature_names=original_metrics['feature_names']
+                    )
+                
+                responses.append(response)
+                logger.info(f"Fine-tuning completado para {model_name}")
+                
+            except Exception as e:
+                logger.error(f"Error en fine-tuning del modelo {model_file}: {str(e)}")
+                logger.exception("Stacktrace completo:")
+                continue
+        
+        if not responses:
+            logger.warning("No se pudo completar el fine-tuning de ningún modelo")
+        else:
+            logger.info(f"Fine-tuning completado para {len(responses)} modelos")
+        
+        return responses
 
 class NoSentimentFineTuningModelTrainer(SentimentFineTuningModelTrainer):
     """
