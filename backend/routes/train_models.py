@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from backend.utils.response_models import TrainingResponseModel
 from backend.services.ModelTraining import SentimentAnalysisModelTrainer, NoSentimentAnalysisModelTrainer
-from backend.services.ModelFineTuning import SentimentFineTuningModelTrainer, NoSentimentFineTuningModelTrainer
+from backend.services.ModelFineTuning import ModelFineTuner
 from backend.services.TrainingResultsViz import TrainingResultsVisualization
 import os
 import logging
@@ -81,45 +81,38 @@ async def fine_tune_model_with_sentiment():
         model_paths = [
             'models/svm_ngram_model_sentiment.pkl',
             'models/lr_ngram_model_sentiment.pkl',
-            'models/nn_embedding_model_sentiment.h5',
-            'models/boosting_char_ngram_model_sentiment.pkl'
+            'models/boosting_char_ngram_model_sentiment.pkl',
+            'models/nn_embedding_model_sentiment.h5'
         ]
 
-        fine_tuner = SentimentFineTuningModelTrainer(model_paths, X_train, X_test, y_train, y_test)
+        fine_tuner = ModelFineTuner(
+            model_paths, 
+            X_train, X_test, 
+            y_train, y_test, 
+            with_sentiment=True
+        )
         fine_tuning_results = fine_tuner.fine_tune_models()
 
-        # Crear directorios para visualizaciones
-        os.makedirs("visualizations/fine_tuning/sentiment", exist_ok=True)
-
-        # Generar visualizaciones de manera segura
-        try:
-            TrainingResultsVisualization.generate_fine_tuning_results_table(
-                fine_tuning_results, 
-                "visualizations/fine_tuning/sentiment"
+        # Crear visualizaciones para cada modelo
+        for result in fine_tuning_results:
+            viz = TrainingResultsVisualization(
+                name_model=result.name_model,
+                accuracy_train=result.accuracy_train,
+                accuracy_test=result.accuracy,
+                feature_importances=result.feature_importances,
+                feature_names=result.feature_names
             )
             
-            for result in fine_tuning_results:
-                try:
-                    viz = TrainingResultsVisualization(
-                        name_model=result.name_model,
-                        accuracy_train=result.accuracy_train,
-                        accuracy_test=result.accuracy,
-                        feature_importances=result.feature_importances,
-                        feature_names=result.feature_names
-                    )
-                    viz.generate_and_save_all(
-                        f"visualizations/fine_tuning/sentiment/{result.name_model.replace(' ', '_')}"
-                    )
-                except Exception as viz_error:
-                    logger.error(f"Error en visualización para {result.name_model}: {str(viz_error)}")
-                    continue
-                    
-        except Exception as viz_error:
-            logger.error(f"Error general en visualizaciones: {str(viz_error)}")
-            # Continuar con la respuesta incluso si fallan las visualizaciones
-            
+            # Generar y guardar todas las visualizaciones
+            viz.generate_and_save_all(f"visualizations/fine_tuning/sentiment/{result.name_model}")
+
+        # Generar tabla de resultados general
+        TrainingResultsVisualization.generate_fine_tuning_results_table(
+            fine_tuning_results, 
+            "visualizations/fine_tuning/sentiment"
+        )
+
         return fine_tuning_results
-        
     except Exception as e:
         logger.error(f"Error en fine-tuning: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -138,7 +131,12 @@ async def fine_tune_model_without_sentiment():
             'models/nn_embedding_model_no_sentiment.h5'
         ]
 
-        fine_tuner = NoSentimentFineTuningModelTrainer(model_paths, X_train, X_test, y_train, y_test)
+        fine_tuner = ModelFineTuner(
+            model_paths, 
+            X_train, X_test, 
+            y_train, y_test, 
+            with_sentiment=False
+        )
         fine_tuning_results = fine_tuner.fine_tune_models()
 
         # Crear visualizaciones para cada modelo
