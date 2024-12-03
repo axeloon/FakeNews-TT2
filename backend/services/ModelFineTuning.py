@@ -161,6 +161,14 @@ class SentimentFineTuningModelTrainer(FineTuningModelTrainer):
             'models/boosting_char_ngram_model_sentiment.pkl': 
                 (BoostingPipeline, "Boosting (BO) con n-grams de caracteres"),
             'models/nn_embedding_model_sentiment.h5': 
+                (NeuralNetworkPipeline, "Embeddings + Redes Neuronales"),
+            'models/svm_ngram_model_no_sentiment.pkl': 
+                (SVMPipeline, "N-grams + SVM"),
+            'models/lr_ngram_model_no_sentiment.pkl': 
+                (LogisticRegressionPipeline, "N-grams + Regresión Logística"),
+            'models/boosting_char_ngram_model_no_sentiment.pkl': 
+                (BoostingPipeline, "Boosting (BO) con n-grams de caracteres"),
+            'models/nn_embedding_model_no_sentiment.h5': 
                 (NeuralNetworkPipeline, "Embeddings + Redes Neuronales")
         }
 
