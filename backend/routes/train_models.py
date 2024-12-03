@@ -121,6 +121,8 @@ async def fine_tune_model_with_sentiment():
                 logger.error(f"Error generando visualizaciones para {result.name_model}: {str(viz_error)}")
                 continue
 
+        TrainingResultsVisualization.generate_fine_tuning_results_table(fine_tuning_results, "visualizations/fine_tuning/sentiment")
+
         return fine_tuning_results
     except Exception as e:
         logger.error(f"Error en fine-tuning: {str(e)}")
@@ -183,6 +185,8 @@ async def fine_tune_model_without_sentiment():
             except Exception as viz_error:
                 logger.error(f"Error al generar visualización para {result.name_model}: {str(viz_error)}")
                 continue
+
+        TrainingResultsVisualization.generate_fine_tuning_results_table(fine_tuning_results, "visualizations/fine_tuning/no_sentiment")
 
         return fine_tuning_results
     except Exception as e:
