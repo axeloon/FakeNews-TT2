@@ -2,6 +2,7 @@ import logging
 import gc
 from abc import ABC, abstractmethod
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from backend.constant import RANDOM_SEED
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,11 @@ class BaseModelPipeline(ABC):
             self.model = self.create_model()
             param_grid = self.get_param_grid()
             
-            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+            cv = StratifiedKFold(
+                n_splits=5, 
+                shuffle=True, 
+                random_state=RANDOM_SEED
+            )
             
             grid_search = GridSearchCV(
                 estimator=self.model,
@@ -38,7 +43,9 @@ class BaseModelPipeline(ABC):
                 cv=cv,
                 scoring='f1_weighted',
                 n_jobs=-1,
-                verbose=1
+                verbose=1,
+                refit=True,
+                return_train_score=True
             )
             
             grid_search.fit(self.X_train, self.y_train)
@@ -51,4 +58,4 @@ class BaseModelPipeline(ABC):
             
         except Exception as e:
             logger.error(f"Error en fine-tuning: {str(e)}")
-            raise 
+            raise

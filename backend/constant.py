@@ -1,3 +1,7 @@
+import numpy as np
+import random
+import tensorflow as tf
+
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
 
 #Start X Method
@@ -61,4 +65,29 @@ FEATURE_COLUMNS = [
     "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
     "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
     "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"
+]
+
+# Establecer seeds globales
+RANDOM_SEED = 42
+np.random.seed(RANDOM_SEED)
+random.seed(RANDOM_SEED)
+tf.random.set_seed(RANDOM_SEED)
+
+# Feature Columns para modelos sin análisis de sentimiento
+FEATURE_COLUMNS_NO_SENTIMENT = [
+    "content_cant_oraciones", "content_cant_palabras", "content_cant_org", 
+    "content_cant_personas", "content_cant_loc", "content_f_adjetivos", 
+    "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
+    "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
+    "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica"
+]
+
+# Feature Columns para modelos con análisis de sentimiento
+FEATURE_COLUMNS_SENTIMENT = [
+    "content_cant_oraciones", "content_cant_palabras", "content_cant_org", 
+    "content_cant_personas", "content_cant_loc", "content_f_adjetivos", 
+    "content_f_verbos", "content_f_sustantivos", "content_f_pronombres",
+    "content_f_adverbios", "content_f_determinantes", "content_f_stopwords",
+    "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica",
+    "polarity", "subjectivity", "polarity_category", "subjectivity_category"
 ]

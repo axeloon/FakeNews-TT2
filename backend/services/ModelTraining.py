@@ -23,7 +23,11 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 from backend.database.connection import SessionLocal
 from backend.utils.response_models import TrainingResponseModel
-from backend.constant import FEATURE_COLUMNS
+from backend.constant import (
+    FEATURE_COLUMNS_SENTIMENT, 
+    FEATURE_COLUMNS_NO_SENTIMENT,
+    RANDOM_SEED
+)
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -47,18 +51,29 @@ class ModelTrainer(ABC):
         self.data = self.load_data()
         logger.info(f"Datos cargados exitosamente. Tamaño del dataset: {len(self.data)}")
         
-        self.X = self.data[FEATURE_COLUMNS]
+        # Determinar las columnas según el tipo de modelo
+        self.feature_columns = (
+            FEATURE_COLUMNS_SENTIMENT 
+            if 'sentiment_analysis' in table_name 
+            else FEATURE_COLUMNS_NO_SENTIMENT
+        )
+        
+        self.X = self.data[self.feature_columns]
         self.y = self.data['is_false']
         self.le = LabelEncoder()
         self.y = self.le.fit_transform(self.y)
         
         # Escalar los datos
         scaler = StandardScaler()
-        self.X = pd.DataFrame(scaler.fit_transform(self.X), columns=FEATURE_COLUMNS)
+        self.X = pd.DataFrame(scaler.fit_transform(self.X), columns=self.feature_columns)
         
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            self.X, self.y, test_size=0.2, random_state=42
+            self.X, self.y, 
+            test_size=0.2, 
+            random_state=RANDOM_SEED,
+            stratify=self.y  # Asegurar distribución balanceada
         )
+        
         logger.info(f"División de datos completada. Conjunto de entrenamiento: {len(self.X_train)}, Conjunto de prueba: {len(self.X_test)}")
         
         self.name_model = None
@@ -102,7 +117,7 @@ class ModelTrainer(ABC):
         logger.info("Calculando Permutation Importance...")
         try:
             # Asegurarse de que los datos estén en el formato correcto
-            X = pd.DataFrame(X, columns=FEATURE_COLUMNS)
+            X = pd.DataFrame(X, columns=self.feature_columns)  # Usar las columnas específicas
             y = y if isinstance(y, np.ndarray) else np.array(y)
             
             # Convertir predicciones continuas a binarias si es necesario
@@ -125,7 +140,7 @@ class ModelTrainer(ABC):
             importances = result.importances_mean
             importances = np.where(importances < 0, 0, importances)  # Establecer valores negativos en 0
             importances = importances / np.sum(importances) if np.sum(importances) != 0 else importances
-            feature_names = FEATURE_COLUMNS
+            feature_names = self.feature_columns
             
             logger.info("Permutation Importance calculado exitosamente")
             return importances, feature_names
@@ -140,13 +155,11 @@ class ModelTrainer(ABC):
         
         # Para modelos que tienen feature_importances_ nativo
         if hasattr(model, 'feature_importances_'):
-            feature_names = FEATURE_COLUMNS
-            return model.feature_importances_, feature_names
+            return model.feature_importances_, self.feature_columns
             
         # Para modelos que tienen coef_ (como Logistic Regression)
         elif hasattr(model, 'coef_'):
-            feature_names = FEATURE_COLUMNS
-            return np.abs(model.coef_[0]), feature_names
+            return np.abs(model.coef_[0]), self.feature_columns
             
         # Para SVM y Redes Neuronales, usar Permutation Importance
         else:
@@ -174,7 +187,7 @@ class NeuralNetworkTrainer(ModelTrainer):
 
         def create_nn_model():
             model = Sequential([
-                Dense(64, activation='relu', input_shape=(len(FEATURE_COLUMNS),)),  # Utilizamos FEATURE_COLUMNS para input_shape
+                Dense(64, activation='relu', input_shape=(len(self.feature_columns),)),  # Utilizamos FEATURE_COLUMNS para input_shape
                 Dense(32, activation='relu'),
                 Dense(1, activation='sigmoid')
             ])
