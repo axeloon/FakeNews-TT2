@@ -1,6 +1,7 @@
+import logging
+import gc
 from abc import ABC, abstractmethod
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ class BaseModelPipeline(ABC):
             
             grid_search.fit(self.X_train, self.y_train)
             self.best_model = grid_search.best_estimator_
+            
+            # Limpiar recursos
+            gc.collect()
             
             return self.best_model
             
