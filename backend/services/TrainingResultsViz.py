@@ -26,31 +26,47 @@ class TrainingResultsVisualization:
         return metrics_filename, importance_filename, comparison_filename
 
     def generate_accuracy_tables(self, metrics_filename):
-        """Genera una tabla combinada con métricas de entrenamiento y prueba"""
-        # Tabla combinada de métricas
-        combined_data = {
+        """Genera una tabla similar a la mostrada en la imagen"""
+        # Crear DataFrame con el formato deseado
+        data = {
             'Modelo': [self.name_model],
-            'Entrenamiento': [round(self.accuracy_train, 2)],
-            'Prueba': [round(self.accuracy_test, 2)]
+            'Entrenamiento': [f"{self.accuracy_train:.2f}"],
+            'Prueba': [f"{self.accuracy_test:.2f}"]
         }
-        combined_df = pd.DataFrame(combined_data)
+        df = pd.DataFrame(data)
 
-        # Generar imagen para tabla combinada
-        fig, ax = plt.subplots(figsize=(8, len(combined_df) * 0.6))
+        # Configurar el estilo de la tabla
+        fig, ax = plt.subplots(figsize=(10, 2))
         ax.axis('off')
+        
+        # Crear tabla con estilo mejorado
         table = ax.table(
-            cellText=combined_df.values,
-            colLabels=combined_df.columns,
+            cellText=df.values,
+            colLabels=df.columns,
             cellLoc='center',
             loc='center',
-            colColours=['#e49edd'] * 3
+            colColours=['#f2f2f2'] * len(df.columns),
+            cellColours=[['#ffffff'] * len(df.columns)]
         )
+        
+        # Ajustar el estilo de la tabla
         table.auto_set_font_size(False)
         table.set_fontsize(10)
-        table.auto_set_column_width(col=list(range(len(combined_df.columns))))
+        table.scale(1.2, 1.5)
+        
+        # Ajustar bordes y colores
+        for cell in table._cells:
+            table._cells[cell].set_edgecolor('#cccccc')
+            table._cells[cell].set_linewidth(1)
         
         # Guardar la tabla
-        plt.savefig(f"{metrics_filename}.png")
+        plt.savefig(f"{metrics_filename}.png", 
+                    bbox_inches='tight', 
+                    dpi=300,
+                    facecolor='white',
+                    edgecolor='none',
+                    pad_inches=0.1)
+        plt.close()
         
         return fig
 
@@ -125,6 +141,60 @@ class TrainingResultsVisualization:
         except Exception as e:
             logger.error(f"Error al generar visualizaciones: {str(e)}")
             raise
+
+    @staticmethod
+    def generate_fine_tuning_results_table(fine_tuning_results, base_path):
+        """Genera una tabla comparativa con todos los resultados del fine-tuning"""
+        plt.figure(figsize=(8, 4))  # Reducido el tamaño vertical
+        
+        # Extraer datos de los resultados
+        model_names = []
+        train_accuracies = []
+        test_accuracies = []
+        
+        for result in fine_tuning_results:
+            model_names.append(result.name_model)
+            train_accuracies.append(result.accuracy_train)
+            test_accuracies.append(result.accuracy)
+        
+        # Crear tabla
+        cell_text = [
+            [f"{train:.2f}", f"{test:.2f}"]
+            for train, test in zip(train_accuracies, test_accuracies)
+        ]
+        
+        table = plt.table(
+            cellText=cell_text,
+            rowLabels=model_names,
+            colLabels=['Entrenamiento', 'Prueba'],
+            loc='center',
+            cellLoc='center'
+        )
+        
+        # Personalizar apariencia
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1.2, 1.2)  # Reducida la escala vertical
+        
+        # Configurar colores
+        for i in range(len(model_names)):
+            table[(i+1, 0)].set_facecolor('#e49edd')
+            table[(i+1, 1)].set_facecolor('#e49edd')
+        
+        # Configurar título
+        plt.title('Exactitud en Fine-tuning', pad=10)  # Reducido el padding
+        plt.axis('off')
+        
+        # Guardar figura con menos espacio en blanco
+        plt.savefig(
+            f"{base_path}/fine_tuning_results_table.png",
+            bbox_inches='tight',
+            dpi=300,
+            facecolor='white',
+            edgecolor='none',
+            pad_inches=0.1  # Reducido el padding exterior
+        )
+        plt.close()
 
     def generate_comparison_plot(self):
         """Genera un gráfico comparativo de exactitud entre entrenamiento y prueba"""
