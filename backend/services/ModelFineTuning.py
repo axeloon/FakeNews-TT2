@@ -1,30 +1,22 @@
 import logging
 import joblib
 import os
-import numpy as np
 import json
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
-from tensorflow.keras.models import load_model, Sequential
+import numpy as np
+import pandas as pd
+from tensorflow.keras.models import load_model
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
-from sklearn.pipeline import Pipeline
 from abc import ABC, abstractmethod
 from typing import List
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from backend.utils.response_models import TrainingResponseModel
 from sklearn.inspection import permutation_importance
 from backend.constant import FEATURE_COLUMNS
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from sklearn.utils.class_weight import compute_class_weight
-from .pipelines.svm_pipeline import SVMPipeline
-from .pipelines.lr_pipeline import LogisticRegressionPipeline
-from .pipelines.boosting_pipeline import BoostingPipeline
-from .pipelines.nn_pipeline import NeuralNetworkPipeline
+
+from backend.services.pipelines.svm_pipeline import SVMPipeline
+from backend.services.pipelines.lr_pipeline import LogisticRegressionPipeline
+from backend.services.pipelines.boosting_pipeline import BoostingPipeline
+from backend.services.pipelines.nn_pipeline import NeuralNetworkPipeline
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
