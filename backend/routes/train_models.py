@@ -35,8 +35,6 @@ async def train_model_with_sentiment():
                 feature_names=result.feature_names
             )
             
-            # Generar y guardar todas las visualizaciones
-            viz.generate_and_save_all(f"visualizations/sentiment/{result.name_model}")
 
         # Generar tabla de resultados general
         TrainingResultsVisualization.generate_fine_tuning_results_table(
@@ -70,9 +68,6 @@ async def train_model_without_sentiment():
                 feature_names=result.feature_names
             )
             
-            # Generar y guardar todas las visualizaciones
-            viz.generate_and_save_all(f"visualizations/no_sentiment/{result.name_model}")
-
         # Generar tabla de resultados general
         TrainingResultsVisualization.generate_fine_tuning_results_table(
             training_results, 

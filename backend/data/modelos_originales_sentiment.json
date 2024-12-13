@@ -1,0 +1,42 @@
+[
+    {
+        "name_model": "N-grams + SVM",
+        "status": "Entrenamiento completado",
+        "accuracy": 0.7898089171974523,
+        "accuracy_train": 0.7983014861995754,
+        "f1_score": 0.740192133676854,
+        "precision": 0.7321041848642698,
+        "recall": 0.7898089171974523,
+        "message": "El modelo se ha entrenado y guardado exitosamente."
+    },
+    {
+        "name_model": "N-grams + Regresión Logística",
+        "status": "Entrenamiento completado",
+        "accuracy": 0.7707006369426752,
+        "accuracy_train": 0.7627388535031847,
+        "f1_score": 0.7503351832622098,
+        "precision": 0.7386556531891043,
+        "recall": 0.7707006369426752,
+        "message": "El modelo se ha entrenado y guardado exitosamente."
+    },
+    {
+        "name_model": "Boosting (BO) con n-grams de caracteres",
+        "status": "Entrenamiento completado",
+        "accuracy": 0.7791932059447984,
+        "accuracy_train": 0.8853503184713376,
+        "f1_score": 0.7733952587355989,
+        "precision": 0.7686995663859016,
+        "recall": 0.7791932059447984,
+        "message": "El modelo se ha entrenado y guardado exitosamente."
+    },
+    {
+        "name_model": "Embeddings + Redes Neuronales",
+        "status": "Entrenamiento completado",
+        "accuracy": 0.7961783409118652,
+        "accuracy_train": 0.7850318551063538,
+        "f1_score": 0.7619206734819314,
+        "precision": 0.755937901783735,
+        "recall": 0.7961783439490446,
+        "message": "El modelo se ha entrenado y guardado exitosamente."
+    }
+]
