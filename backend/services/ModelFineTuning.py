@@ -33,13 +33,18 @@ class ModelFineTuner:
         self.name_model = None
         
         try:
-            metrics_file = 'backend/data/modelos_originales.json'
+            # Seleccionar el archivo de métricas según el tipo de modelo
+            if self.with_sentiment:
+                metrics_file = 'backend/data/modelos_originales_sentiment.json'
+            else:
+                metrics_file = 'backend/data/modelos_originales_no_sentiment.json'
+            
             with open(metrics_file, 'r', encoding='utf-8') as f:
                 self.original_metrics = {
                     model['name_model']: model 
                     for model in json.load(f)
                 }
-            logger.info("Métricas originales cargadas correctamente")
+            logger.info(f"Métricas originales cargadas correctamente para modelos {'con' if self.with_sentiment else 'sin'} sentimiento")
         except Exception as e:
             logger.error(f"Error al cargar métricas originales: {str(e)}")
             raise
@@ -147,10 +152,10 @@ class ModelFineTuner:
         """Evalúa el modelo y retorna las métricas"""
         try:
             # Para modelos de Keras
-            if isinstance(model, NeuralNetworkNoSentimentPipeline) or isinstance(model, NeuralNetworkSentimentPipeline):
-                y_pred_train = (model.model.predict(X_train) > 0.5).astype(int).ravel()
-                y_pred_test = (model.model.predict(X_test) > 0.5).astype(int).ravel()
-                y_prob_test = model.model.predict(X_test).ravel()
+            if isinstance(model, (NeuralNetworkNoSentimentPipeline, NeuralNetworkSentimentPipeline)):
+                y_pred_train = model.predict(X_train)
+                y_pred_test = model.predict(X_test)
+                y_prob_test = model.predict_proba(X_test)
             else:
                 # Para modelos sklearn
                 y_pred_train = model.predict(X_train)
@@ -159,6 +164,14 @@ class ModelFineTuner:
                     y_prob_test = model.predict_proba(X_test)[:, 1]
                 except:
                     y_prob_test = model.decision_function(X_test) if hasattr(model, 'decision_function') else None
+
+            # Asegurar que todos los arrays sean 1D
+            y_train = np.asarray(y_train).flatten()
+            y_test = np.asarray(y_test).flatten()
+            y_pred_train = np.asarray(y_pred_train).flatten()
+            y_pred_test = np.asarray(y_pred_test).flatten()
+            if y_prob_test is not None:
+                y_prob_test = np.asarray(y_prob_test).flatten()
 
             metrics = {
                 'accuracy_train': float(accuracy_score(y_train, y_pred_train)),

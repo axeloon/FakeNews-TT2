@@ -6,6 +6,11 @@ import numpy as np
 from backend.constant import RANDOM_SEED
 
 class NeuralNetworkSentimentPipeline(SentimentBasePipeline):
+    def __init__(self, X_train, X_test, y_train, y_test):
+        super().__init__(X_train, X_test, y_train, y_test)
+        self.model = None
+        self.best_model = None
+
     def get_param_grid(self):
         return None
     
@@ -92,5 +97,23 @@ class NeuralNetworkSentimentPipeline(SentimentBasePipeline):
             class_weight=class_weight_dict
         )
         
+        self.model = model
         self.best_model = model
-        return model 
+        return self
+
+    def predict(self, X):
+        """
+        Realiza predicciones binarias
+        """
+        if self.model is None:
+            raise ValueError("El modelo no ha sido entrenado")
+        predictions = self.model.predict(X)
+        return (predictions > 0.5).astype(int).flatten()
+
+    def predict_proba(self, X):
+        """
+        Realiza predicciones de probabilidad
+        """
+        if self.model is None:
+            raise ValueError("El modelo no ha sido entrenado")
+        return self.model.predict(X).flatten()

@@ -7,7 +7,7 @@ import logging
 from typing import List
 from backend.utils.response_models import TrainingResponseModel
 import numpy as np
-from sklearn.metrics import confusion_matrix, roc_curve, auc
+from sklearn.metrics import confusion_matrix, roc_curve, auc, roc_auc_score
 import seaborn as sns
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class TrainingResultsVisualization:
         self.feature_names = feature_names
         
     @staticmethod
-    def generate_fine_tuning_results_table(training_results, output_dir):
+    def generate_fine_tuning_results_table(training_results, output_dir, with_sentiment=True):
         """
         Genera una tabla con los resultados del fine-tuning y todas las visualizaciones
         """
@@ -69,7 +69,8 @@ class TrainingResultsVisualization:
         table.scale(1.2, 1.5)
         table.auto_set_column_width(list(range(len(df_comparison.columns))))
         
-        plt.title("Resultados de Fine-tuning (Sin Análisis de Sentimiento)", pad=20)
+        title = "Resultados de Fine-tuning (Con Análisis de Sentimiento)" if with_sentiment else "Resultados de Fine-tuning (Sin Análisis de Sentimiento)"
+        plt.title(title, pad=20)
         
         # Guardar tabla comparativa en la raíz
         plt.savefig(
@@ -80,6 +81,12 @@ class TrainingResultsVisualization:
             facecolor='white'
         )
         plt.close()
+        
+        # Generar tabla comparativa con todas las métricas
+        TrainingResultsVisualization._generate_all_metrics_comparison_table(training_results, output_dir)
+        
+        # Generar gráficos comparativos por métrica
+        TrainingResultsVisualization._generate_metric_comparison_plots(training_results, output_dir)
         
         # Luego generar las visualizaciones individuales para cada modelo
         for result in training_results:
@@ -356,4 +363,122 @@ class TrainingResultsVisualization:
             
         except Exception as e:
             logger.error(f"Error generando tabla de métricas detallada: {str(e)}")
+            plt.close('all')
+
+    @staticmethod
+    def _generate_all_metrics_comparison_table(training_results, output_dir):
+        """
+        Genera una tabla comparativa con todas las métricas para todos los modelos
+        similar a la Tabla 4.11 del ejemplo
+        """
+        try:
+            # Crear DataFrame con todas las métricas
+            data = {
+                'Modelo': [],
+                'Exactitud': [],
+                'Precisión': [],
+                'Sensibilidad': [],
+                'F1-score': [],
+                'AUC': []
+            }
+            
+            for result in training_results:
+                data['Modelo'].append(result.name_model)
+                data['Exactitud'].append(f"{float(result.accuracy):.4f}")
+                data['Precisión'].append(f"{float(result.precision):.4f}")
+                data['Sensibilidad'].append(f"{float(result.recall):.4f}")
+                data['F1-score'].append(f"{float(result.f1_score):.4f}")
+                # Calcular AUC si es posible
+                if result.y_true is not None and result.y_prob is not None:
+                    auc_score = roc_auc_score(result.y_true, result.y_prob)
+                    data['AUC'].append(f"{float(auc_score):.4f}")
+                else:
+                    data['AUC'].append("N/A")
+            
+            df = pd.DataFrame(data)
+            
+            # Crear figura y tabla
+            plt.figure(figsize=(12, 6))
+            fig, ax = plt.subplots(figsize=(12, 6))
+            ax.axis('off')
+            
+            table = ax.table(
+                cellText=df.values,
+                colLabels=df.columns,
+                cellLoc='center',
+                loc='center',
+                colColours=['#E49EDD'] * len(df.columns),
+                cellColours=[['#F0F0F0' if i % 2 == 0 else '#FFFFFF'] * len(df.columns) 
+                            for i in range(len(df))]
+            )
+            
+            table.auto_set_font_size(False)
+            table.set_fontsize(9)
+            table.scale(1.2, 1.5)
+            table.auto_set_column_width(list(range(len(df.columns))))
+            
+            plt.title("Comparación de Métricas entre Modelos", pad=20)
+            
+            # Guardar tabla
+            plt.savefig(
+                os.path.join(output_dir, "all_metrics_comparison.png"),
+                bbox_inches='tight',
+                dpi=300,
+                pad_inches=0.5,
+                facecolor='white'
+            )
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando tabla comparativa de métricas: {str(e)}")
+            plt.close('all')
+
+    @staticmethod
+    def _generate_metric_comparison_plots(training_results, output_dir):
+        """
+        Genera gráficos de barras comparativos para cada métrica
+        """
+        try:
+            metrics = {
+                'Exactitud': 'accuracy',
+                'Precisión': 'precision',
+                'Sensibilidad': 'recall',
+                'F1-Score': 'f1_score'
+            }
+            
+            for metric_name, metric_attr in metrics.items():
+                plt.figure(figsize=(10, 6))
+                
+                models = [result.name_model for result in training_results]
+                values = [getattr(result, metric_attr) for result in training_results]
+                
+                # Crear gráfico de barras
+                bars = plt.bar(models, values)
+                
+                # Personalizar gráfico
+                plt.title(f'Comparación de {metric_name} entre Modelos')
+                plt.xlabel('Modelos')
+                plt.ylabel(metric_name)
+                plt.xticks(rotation=45, ha='right')
+                
+                # Agregar valores sobre las barras
+                for bar in bars:
+                    height = bar.get_height()
+                    plt.text(bar.get_x() + bar.get_width()/2., height,
+                            f'{height:.4f}',
+                            ha='center', va='bottom')
+                
+                plt.tight_layout()
+                
+                # Guardar gráfico
+                plt.savefig(
+                    os.path.join(output_dir, f"comparison_{metric_attr}.png"),
+                    bbox_inches='tight',
+                    dpi=300,
+                    facecolor='white'
+                )
+                plt.close()
+                
+        except Exception as e:
+            logger.error(f"Error generando gráficos comparativos: {str(e)}")
             plt.close('all')
