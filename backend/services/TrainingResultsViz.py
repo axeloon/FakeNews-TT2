@@ -7,14 +7,22 @@ import logging
 from typing import List
 from backend.utils.response_models import TrainingResponseModel
 import numpy as np
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+import seaborn as sns
 
 logger = logging.getLogger(__name__)
 
 class TrainingResultsVisualization:
-    def __init__(self, name_model, accuracy_train, accuracy_test, feature_importances=None, feature_names=None):
+    def __init__(self, name_model, accuracy_train, accuracy_test, precision=None, recall=None, f1_score=None, y_true=None, y_pred=None, y_prob=None, feature_importances=None, feature_names=None):
         self.name_model = name_model
         self.accuracy_train = accuracy_train
         self.accuracy_test = accuracy_test
+        self.precision = precision
+        self.recall = recall
+        self.f1_score = f1_score
+        self.y_true = y_true
+        self.y_pred = y_pred
+        self.y_prob = y_prob
         self.feature_importances = feature_importances
         self.feature_names = feature_names
         
@@ -38,6 +46,13 @@ class TrainingResultsVisualization:
             # Generar gráfico comparativo
             logger.info("Generando gráfico comparativo...")
             self._generate_comparison_plot(os.path.join(base_path, "comparison.png"))
+            
+            # Nuevas visualizaciones
+            if self.y_true is not None and self.y_pred is not None:
+                self._generate_confusion_matrix(os.path.join(base_path, "confusion_matrix.png"))
+            
+            if self.y_true is not None and self.y_prob is not None:
+                self._generate_roc_curve(os.path.join(base_path, "roc_curve.png"))
             
             logger.info(f"Todas las visualizaciones generadas exitosamente en {base_path}")
             plt.close('all')  # Cerrar todas las figuras
@@ -125,28 +140,37 @@ class TrainingResultsVisualization:
                 
             plt.style.use('default')
             
-            # Crear DataFrame con los datos
+            # Crear DataFrame con todas las métricas
             data = {
-                'Métrica': ['Accuracy (Train)', 'Accuracy (Test)', 'F1-Score'],
+                'Métrica': [
+                    'Exactitud (Train)', 
+                    'Exactitud (Test)',
+                    'Precisión',
+                    'Sensibilidad',
+                    'F1-Score'
+                ],
                 'Valor': [
-                    f"{self.accuracy_train:.4f}", 
+                    f"{self.accuracy_train:.4f}",
                     f"{self.accuracy_test:.4f}",
-                    f"{getattr(self, 'f1_score', 0.0):.4f}"
+                    f"{self.precision:.4f}" if hasattr(self, 'precision') else "N/A",
+                    f"{self.recall:.4f}" if hasattr(self, 'recall') else "N/A",
+                    f"{self.f1_score:.4f}" if hasattr(self, 'f1_score') else "N/A"
                 ]
             }
             df = pd.DataFrame(data)
             
             # Crear figura y tabla
-            fig, ax = plt.subplots(figsize=(8, 4))
+            fig, ax = plt.subplots(figsize=(8, 5))
             ax.axis('tight')
             ax.axis('off')
             
+            # Crear tabla con colores alternados
             table = ax.table(cellText=df.values,
-                           colLabels=df.columns,
-                           cellLoc='center',
-                           loc='center',
-                           colColours=['#e6e6e6']*2,
-                           cellColours=[['#f2f2f2', 'white']]*len(df))
+                            colLabels=df.columns,
+                            cellLoc='center',
+                            loc='center',
+                            colColours=['#e6e6e6']*2,
+                            cellColours=[['#f2f2f2', 'white'] for _ in range(len(df))])
             
             table.auto_set_font_size(False)
             table.set_fontsize(9)
@@ -223,3 +247,52 @@ class TrainingResultsVisualization:
             logger.error(f"Error generando gráfico comparativo: {str(e)}")
             plt.close('all')
             raise
+
+    def _generate_confusion_matrix(self, save_path):
+        """Genera y guarda la matriz de confusión"""
+        try:
+            plt.figure(figsize=(8, 6))
+            cm = confusion_matrix(self.y_true, self.y_pred)
+            
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                       xticklabels=['Verdadero', 'Falso'],
+                       yticklabels=['Verdadero', 'Falso'])
+            
+            plt.title(f'Matriz de Confusión - {self.name_model}')
+            plt.ylabel('Valor Real')
+            plt.xlabel('Valor Predicho')
+            
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando matriz de confusión: {str(e)}")
+            plt.close()
+
+    def _generate_roc_curve(self, save_path):
+        """Genera y guarda la curva ROC"""
+        try:
+            plt.figure(figsize=(8, 6))
+            
+            fpr, tpr, _ = roc_curve(self.y_true, self.y_prob)
+            roc_auc = auc(fpr, tpr)
+            
+            plt.plot(fpr, tpr, color='darkorange', lw=2,
+                    label=f'ROC curve (AUC = {roc_auc:.2f})')
+            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+            
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('Tasa de Falsos Positivos')
+            plt.ylabel('Tasa de Verdaderos Positivos')
+            plt.title(f'Curva ROC - {self.name_model}')
+            plt.legend(loc="lower right")
+            
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando curva ROC: {str(e)}")
+            plt.close()

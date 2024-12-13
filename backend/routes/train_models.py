@@ -25,6 +25,12 @@ async def train_model_with_sentiment():
                 name_model=result.name_model,
                 accuracy_train=result.accuracy_train,
                 accuracy_test=result.accuracy,
+                precision=result.precision,
+                recall=result.recall,
+                f1_score=result.f1_score,
+                y_true=result.y_true,
+                y_pred=result.y_pred,
+                y_prob=result.y_prob,
                 feature_importances=result.feature_importances,
                 feature_names=result.feature_names
             )
@@ -54,6 +60,12 @@ async def train_model_without_sentiment():
                 name_model=result.name_model,
                 accuracy_train=result.accuracy_train,
                 accuracy_test=result.accuracy,
+                precision=result.precision,
+                recall=result.recall,
+                f1_score=result.f1_score,
+                y_true=result.y_true,
+                y_pred=result.y_pred,
+                y_prob=result.y_prob,
                 feature_importances=result.feature_importances,
                 feature_names=result.feature_names
             )
@@ -99,6 +111,12 @@ async def fine_tune_model_with_sentiment():
                 name_model=result.name_model,
                 accuracy_train=result.accuracy_train,
                 accuracy_test=result.accuracy,
+                precision=result.precision,
+                recall=result.recall,
+                f1_score=result.f1_score,
+                y_true=result.y_true,
+                y_pred=result.y_pred,
+                y_prob=result.y_prob,
                 feature_importances=result.feature_importances,
                 feature_names=result.feature_names
             )
@@ -145,6 +163,12 @@ async def fine_tune_model_without_sentiment():
                 name_model=result.name_model,
                 accuracy_train=result.accuracy_train,
                 accuracy_test=result.accuracy,
+                precision=result.precision,
+                recall=result.recall,
+                f1_score=result.f1_score,
+                y_true=result.y_true,
+                y_pred=result.y_pred,
+                y_prob=result.y_prob,
                 feature_importances=result.feature_importances,
                 feature_names=result.feature_names
             )

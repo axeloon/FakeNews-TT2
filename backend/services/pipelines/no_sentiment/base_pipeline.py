@@ -3,6 +3,9 @@ import gc
 from abc import ABC, abstractmethod
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from backend.constant import RANDOM_SEED
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +32,20 @@ class NoSentimentBasePipeline(ABC):
         """Proceso de fine-tuning para modelos sin sentimiento (mantenido simple)"""
         try:
             self.model = self.create_model()
-            self.model.fit(self.X_train, self.y_train)
-            self.best_model = self.model
+            
+            # Si es un modelo de Keras, ya tiene su propio proceso de fine-tuning
+            if isinstance(self.model, (Sequential, KerasClassifier)):
+                self.best_model = self.model
+                # Agregar clases para compatibilidad con scikit-learn
+                if isinstance(self.best_model, KerasClassifier):
+                    self.best_model.classes_ = np.unique(self.y_train)
+            else:
+                # Proceso normal para modelos sklearn
+                self.model.fit(self.X_train, self.y_train)
+                self.best_model = self.model
+            
             return self.best_model
             
         except Exception as e:
-            logger.error(f"Error en fine-tuning de modelo sin sentimiento: {str(e)}")
-            raise 
+            logger.error(f"Error en fine-tuning: {str(e)}")
+            raise

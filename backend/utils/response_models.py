@@ -67,11 +67,14 @@ class CsvRequest(BaseModel):
 class TrainingResponseModel(BaseModel):
     name_model: str
     status: str
-    accuracy: float
     accuracy_train: float
+    accuracy: float
     f1_score: float
     precision: float
     recall: float
     message: str
     feature_importances: Optional[List[float]] = None
     feature_names: Optional[List[str]] = None
+    y_true: Optional[List[int]] = None
+    y_pred: Optional[List[int]] = None
+    y_prob: Optional[List[float]] = None

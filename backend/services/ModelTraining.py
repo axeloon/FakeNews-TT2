@@ -95,20 +95,26 @@ class ModelTrainer(ABC):
         y_pred_train = model.predict(X_train)
         y_pred_test = model.predict(X_test)
         
+        # Obtener probabilidades si el modelo lo soporta
+        y_prob_test = None
+        if hasattr(model, 'predict_proba'):
+            try:
+                y_prob_test = model.predict_proba(X_test)[:, 1]
+            except:
+                # Si falla, intentar con decision_function
+                if hasattr(model, 'decision_function'):
+                    y_prob_test = model.decision_function(X_test)
+        
         metrics = {
             'accuracy_train': accuracy_score(y_train, y_pred_train),
             'accuracy_test': accuracy_score(y_test, y_pred_test),
             'f1': f1_score(y_test, y_pred_test, average='weighted'),
             'precision': precision_score(y_test, y_pred_test, average='weighted'),
-            'recall': recall_score(y_test, y_pred_test, average='weighted')
+            'recall': recall_score(y_test, y_pred_test, average='weighted'),
+            'y_true': y_test,
+            'y_pred': y_pred_test,
+            'y_prob': y_prob_test
         }
-        
-        logger.info(f"Métricas de evaluación para {self.name_model}:")
-        logger.info(f"Accuracy Train: {metrics['accuracy_train']:.4f}")
-        logger.info(f"Accuracy Test: {metrics['accuracy_test']:.4f}")
-        logger.info(f"F1 Score: {metrics['f1']:.4f}")
-        logger.info(f"Precision: {metrics['precision']:.4f}")
-        logger.info(f"Recall: {metrics['recall']:.4f}")
         
         return metrics
 
@@ -273,7 +279,10 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # N-grams + Regresión Logística
@@ -309,7 +318,10 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # Boosting con n-grams de caracteres
@@ -343,7 +355,10 @@ class SentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # Embeddings + Redes Neuronales
@@ -390,7 +405,10 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # N-grams + Regresión Logística
@@ -426,7 +444,10 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # Boosting con n-grams de caracteres
@@ -460,7 +481,10 @@ class NoSentimentAnalysisModelTrainer(ModelTrainer):
             recall=metrics['recall'],
             message="El modelo se ha entrenado y guardado exitosamente.",
             feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-            feature_names=feature_names if feature_names is not None else None
+            feature_names=feature_names if feature_names is not None else None,
+            y_true=metrics['y_true'].tolist(),
+            y_pred=metrics['y_pred'].tolist(),
+            y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
         ))
 
         # Embeddings + Redes Neuronales

@@ -82,15 +82,25 @@ class ModelFineTuner:
                 pipeline = pipeline_class(self.X_train, self.X_test, self.y_train, self.y_test)
                 fine_tuned_model = pipeline.fine_tune()
                 
-                # Evaluar el modelo
-                y_pred_train = fine_tuned_model.predict(self.X_train)
-                y_pred_test = fine_tuned_model.predict(self.X_test)
-                
-                # Asegurarse de que las predicciones sean binarias
-                if len(y_pred_train.shape) > 1:
-                    y_pred_train = (y_pred_train > 0.5).astype(int)
-                if len(y_pred_test.shape) > 1:
-                    y_pred_test = (y_pred_test > 0.5).astype(int)
+                # Manejo especial para modelos de Keras
+                if model_file.endswith('.h5'):
+                    # Obtener predicciones directamente del modelo de Keras
+                    y_pred_train = (fine_tuned_model.model.predict(self.X_train) > 0.5).astype(int).ravel()
+                    y_pred_test = (fine_tuned_model.model.predict(self.X_test) > 0.5).astype(int).ravel()
+                    y_prob_test = fine_tuned_model.model.predict(self.X_test).ravel()
+                else:
+                    # Para modelos sklearn normales
+                    y_pred_train = fine_tuned_model.predict(self.X_train)
+                    y_pred_test = fine_tuned_model.predict(self.X_test)
+                    
+                    # Obtener probabilidades si el modelo lo soporta
+                    y_prob_test = None
+                    if hasattr(fine_tuned_model, 'predict_proba'):
+                        try:
+                            y_prob_test = fine_tuned_model.predict_proba(self.X_test)[:, 1]
+                        except:
+                            if hasattr(fine_tuned_model, 'decision_function'):
+                                y_prob_test = fine_tuned_model.decision_function(self.X_test)
                 
                 metrics = {
                     'accuracy_train': accuracy_score(self.y_train, y_pred_train),
@@ -117,13 +127,6 @@ class ModelFineTuner:
                     else:
                         joblib.dump(fine_tuned_model, fine_tuned_path)
                     
-                    # Calcular importancia de características
-                    feature_importances = getattr(fine_tuned_model, 'feature_importances_', None)
-                    feature_names = None
-                    
-                    if feature_importances is not None:
-                        feature_names = list(range(len(feature_importances)))
-                    
                     response = TrainingResponseModel(
                         name_model=f"{model_name} (Fine-Tuned)",
                         status="Fine-tuning completado",
@@ -133,8 +136,11 @@ class ModelFineTuner:
                         precision=metrics['precision'],
                         recall=metrics['recall'],
                         message="El modelo ha mejorado y se ha guardado exitosamente.",
-                        feature_importances=feature_importances.tolist() if feature_importances is not None else None,
-                        feature_names=feature_names
+                        feature_importances=None,  # Las redes neuronales no tienen feature_importances
+                        feature_names=None,
+                        y_true=self.y_test.tolist(),
+                        y_pred=y_pred_test.tolist(),
+                        y_prob=y_prob_test.tolist() if y_prob_test is not None else None
                     )
                 else:
                     response = TrainingResponseModel(
@@ -147,7 +153,10 @@ class ModelFineTuner:
                         recall=original_metrics['recall'],
                         message="Se mantiene el modelo original por mejor rendimiento.",
                         feature_importances=original_metrics.get('feature_importances'),
-                        feature_names=original_metrics.get('feature_names')
+                        feature_names=original_metrics.get('feature_names'),
+                        y_true=self.y_test.tolist(),
+                        y_pred=y_pred_test.tolist(),
+                        y_prob=y_prob_test.tolist() if y_prob_test is not None else None
                     )
                 
                 responses.append(response)
