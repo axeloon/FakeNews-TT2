@@ -26,112 +26,104 @@ class TrainingResultsVisualization:
         self.feature_importances = feature_importances
         self.feature_names = feature_names
         
-    def generate_and_save_all(self, base_path):
-        """Genera y guarda todas las visualizaciones"""
-        try:
-            logger.info(f"Generando visualizaciones en {base_path}")
-            os.makedirs(base_path, exist_ok=True)
-            
-            # Generar tabla de métricas
-            logger.info("Generando tabla de métricas...")
-            self._generate_metrics_table(os.path.join(base_path, "metrics_table.png"))
-            
-            # Generar gráfico de importancia de características si está disponible
-            if self.feature_importances is not None and self.feature_names is not None:
-                logger.info("Generando gráfico de importancia de características...")
-                self._generate_feature_importance_plot(os.path.join(base_path, "feature_importance.png"))
-            else:
-                logger.warning("No hay datos de importancia de características disponibles")
-            
-            # Generar gráfico comparativo
-            logger.info("Generando gráfico comparativo...")
-            self._generate_comparison_plot(os.path.join(base_path, "comparison.png"))
-            
-            # Nuevas visualizaciones
-            if self.y_true is not None and self.y_pred is not None:
-                self._generate_confusion_matrix(os.path.join(base_path, "confusion_matrix.png"))
-            
-            if self.y_true is not None and self.y_prob is not None:
-                self._generate_roc_curve(os.path.join(base_path, "roc_curve.png"))
-            
-            logger.info(f"Todas las visualizaciones generadas exitosamente en {base_path}")
-            plt.close('all')  # Cerrar todas las figuras
-            
-        except Exception as e:
-            logger.error(f"Error generando visualizaciones: {str(e)}")
-            plt.close('all')  # Asegurarse de cerrar las figuras incluso si hay error
-            raise
-
     @staticmethod
-    def generate_fine_tuning_results_table(results: List[TrainingResponseModel], save_path: str):
-        try:
-            # Verificar que hay resultados para procesar
-            if not results:
-                logger.warning("No hay resultados para generar la tabla")
-                return
+    def generate_fine_tuning_results_table(training_results, output_dir):
+        """
+        Genera una tabla con los resultados del fine-tuning y todas las visualizaciones
+        """
+        # Crear directorio si no existe
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Primero generar la tabla comparativa de todos los modelos en la raíz
+        comparison_data = {
+            'Modelo': [],
+            'Entrenamiento': [],
+            'Prueba': [],
+            'F1-Score': []
+        }
+        
+        for result in training_results:
+            comparison_data['Modelo'].append(result.name_model)
+            comparison_data['Entrenamiento'].append(f"{float(result.accuracy_train):.4f}")
+            comparison_data['Prueba'].append(f"{float(result.accuracy):.4f}")
+            comparison_data['F1-Score'].append(f"{float(result.f1_score):.4f}")
+        
+        # Crear DataFrame y tabla comparativa
+        df_comparison = pd.DataFrame(comparison_data)
+        plt.figure(figsize=(12, 4))
+        fig, ax = plt.subplots(figsize=(12, 4))
+        ax.axis('off')
+        
+        table = ax.table(
+            cellText=df_comparison.values,
+            colLabels=df_comparison.columns,
+            cellLoc='center',
+            loc='center',
+            colColours=['#E49EDD'] * len(df_comparison.columns),
+            cellColours=[['#F0F0F0' if i % 2 == 0 else '#FFFFFF'] * len(df_comparison.columns) 
+                        for i in range(len(df_comparison))]
+        )
+        
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1.2, 1.5)
+        table.auto_set_column_width(list(range(len(df_comparison.columns))))
+        
+        plt.title("Resultados de Fine-tuning (Sin Análisis de Sentimiento)", pad=20)
+        
+        # Guardar tabla comparativa en la raíz
+        plt.savefig(
+            os.path.join(output_dir, "fine_tuning_results.png"),
+            bbox_inches='tight',
+            dpi=300,
+            pad_inches=0.5,
+            facecolor='white'
+        )
+        plt.close()
+        
+        # Luego generar las visualizaciones individuales para cada modelo
+        for result in training_results:
+            try:
+                # Crear directorio específico del modelo
+                model_dir = os.path.join(output_dir, result.name_model.replace(" ", "_"))
+                os.makedirs(model_dir, exist_ok=True)
                 
-            plt.style.use('default')
-            
-            # Crear DataFrame con los resultados
-            data = {
-                'Modelo': [],
-                'Entrenamiento': [],
-                'Prueba': [],
-                'F1-Score': []  # Añadimos F1-Score para más información
-            }
-            
-            for result in results:
-                # Limpiar el nombre del modelo para mejor visualización
-                model_name = result.name_model.replace(" (Fine-Tuned)", "").replace("_", " ")
-                data['Modelo'].append(model_name)
-                data['Entrenamiento'].append(f"{result.accuracy_train:.4f}")
-                data['Prueba'].append(f"{result.accuracy:.4f}")
-                data['F1-Score'].append(f"{result.f1_score:.4f}")
-            
-            df = pd.DataFrame(data)
-            
-            # Crear figura y tabla
-            fig, ax = plt.subplots(figsize=(12, len(df) + 2))
-            ax.axis('tight')
-            ax.axis('off')
-            
-            # Crear tabla con colores alternados
-            table = ax.table(cellText=df.values,
-                           colLabels=df.columns,
-                           cellLoc='center',
-                           loc='center',
-                           colColours=['#e6e6e6']*len(df.columns),
-                           cellColours=[['#f2f2f2' if i%2==0 else 'white']*len(df.columns) 
-                                      for i in range(len(df))])
-            
-            # Ajustar formato
-            table.auto_set_font_size(False)
-            table.set_fontsize(9)
-            table.scale(1.2, 1.5)
-            
-            # Determinar el título basado en el path
-            title = "Resultados de Fine-tuning"
-            if "no_sentiment" in save_path:
-                title += " (Sin Análisis de Sentimiento)"
-            else:
-                title += " (Con Análisis de Sentimiento)"
+                # Generar las visualizaciones
+                viz = TrainingResultsVisualization(
+                    name_model=result.name_model,
+                    accuracy_train=result.accuracy_train,
+                    accuracy_test=result.accuracy,
+                    precision=result.precision,
+                    recall=result.recall,
+                    f1_score=result.f1_score,
+                    y_true=result.y_true,
+                    y_pred=result.y_pred,
+                    y_prob=result.y_prob,
+                    feature_importances=result.feature_importances,
+                    feature_names=result.feature_names
+                )
                 
-            plt.title(title, pad=20)
-            
-            # Asegurar que el directorio existe
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            
-            # Guardar figura
-            plt.savefig(os.path.join(save_path, 'fine_tuning_results.png'),
-                       bbox_inches='tight',
-                       dpi=300,
-                       facecolor='white')
-            plt.close()
-            
-        except Exception as e:
-            logger.error(f"Error generando tabla de resultados: {str(e)}")
-            plt.close('all')
-            # No levantar la excepción para permitir que el proceso continúe
+                # Generar tabla detallada de métricas
+                viz._generate_detailed_metrics_table(os.path.join(model_dir, "detailed_metrics_table.png"))
+                
+                # Generar visualizaciones en el directorio del modelo
+                viz._generate_comparison_plot(os.path.join(model_dir, "comparison.png"))
+                
+                if result.y_true is not None and result.y_pred is not None:
+                    viz._generate_confusion_matrix(os.path.join(model_dir, "confusion_matrix.png"))
+                
+                if result.y_true is not None and result.y_prob is not None:
+                    try:
+                        viz._generate_roc_curve(os.path.join(model_dir, "roc_curve.png"))
+                    except Exception as e:
+                        logger.error(f"Error generando curva ROC: {str(e)}")
+                
+                if result.feature_importances is not None and result.feature_names is not None:
+                    viz._generate_feature_importance_plot(os.path.join(model_dir, "feature_importance.png"))
+                    
+            except Exception as e:
+                logger.error(f"Error generando visualizaciones para {result.name_model}: {str(e)}")
+                continue
 
     def _generate_metrics_table(self, save_path):
         try:
@@ -296,3 +288,72 @@ class TrainingResultsVisualization:
         except Exception as e:
             logger.error(f"Error generando curva ROC: {str(e)}")
             plt.close()
+
+    def _generate_detailed_metrics_table(self, save_path):
+        """
+        Genera una tabla detallada con las métricas de entrenamiento y prueba
+        similar a la tabla 4.1 del ejemplo
+        """
+        try:
+            if not os.path.exists(os.path.dirname(save_path)):
+                os.makedirs(os.path.dirname(save_path))
+                
+            # Crear DataFrame con las métricas detalladas
+            data = {
+                '': ['Entrenamiento', 'Prueba'],
+                'Exactitud': [
+                    f"{float(self.accuracy_train):.4f}",
+                    f"{float(self.accuracy_test):.4f}"
+                ],
+                'Precisión': [
+                    f"{float(self.precision):.4f}" if self.precision else "N/A",
+                    f"{float(self.precision):.4f}" if self.precision else "N/A"
+                ],
+                'Sensibilidad': [
+                    f"{float(self.recall):.4f}" if self.recall else "N/A",
+                    f"{float(self.recall):.4f}" if self.recall else "N/A"
+                ],
+                'F1-Score': [
+                    f"{float(self.f1_score):.4f}" if self.f1_score else "N/A",
+                    f"{float(self.f1_score):.4f}" if self.f1_score else "N/A"
+                ]
+            }
+            
+            df = pd.DataFrame(data)
+            
+            # Crear figura y tabla
+            plt.figure(figsize=(10, 4))
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.axis('off')
+            
+            # Crear tabla con el estilo definido
+            table = ax.table(
+                cellText=df.values,
+                colLabels=df.columns,
+                cellLoc='center',
+                loc='center',
+                colColours=['#E49EDD'] * len(df.columns),
+                cellColours=[['#F0F0F0' if i % 2 == 0 else '#FFFFFF'] * len(df.columns) 
+                            for i in range(len(df))]
+            )
+            
+            table.auto_set_font_size(False)
+            table.set_fontsize(9)
+            table.scale(1.2, 1.5)
+            table.auto_set_column_width(list(range(len(df.columns))))
+            
+            plt.title(f"Métricas Detalladas - {self.name_model}", pad=20)
+            
+            # Guardar figura
+            plt.savefig(
+                save_path,
+                bbox_inches='tight',
+                dpi=300,
+                pad_inches=0.5,
+                facecolor='white'
+            )
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generando tabla de métricas detallada: {str(e)}")
+            plt.close('all')

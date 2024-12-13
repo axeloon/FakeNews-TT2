@@ -69,12 +69,15 @@ class TrainingResponseModel(BaseModel):
     status: str
     accuracy_train: float
     accuracy: float
-    f1_score: float
-    precision: float
-    recall: float
-    message: str
-    feature_importances: Optional[List[float]] = None
-    feature_names: Optional[List[str]] = None
-    y_true: Optional[List[int]] = None
-    y_pred: Optional[List[int]] = None
-    y_prob: Optional[List[float]] = None
+    precision: float | None = None
+    precision_train: float | None = None
+    recall: float | None = None
+    recall_train: float | None = None
+    f1_score: float | None = None
+    f1_score_train: float | None = None
+    message: str | None = None
+    feature_importances: List[float] | None = None
+    feature_names: List[str] | None = None
+    y_true: List[int] | None = None
+    y_pred: List[int] | None = None
+    y_prob: List[float] | None = None

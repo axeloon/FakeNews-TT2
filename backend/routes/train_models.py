@@ -157,29 +157,10 @@ async def fine_tune_model_without_sentiment():
         )
         fine_tuning_results = fine_tuner.fine_tune_models()
 
-        # Crear visualizaciones para cada modelo
-        for result in fine_tuning_results:
-            viz = TrainingResultsVisualization(
-                name_model=result.name_model,
-                accuracy_train=result.accuracy_train,
-                accuracy_test=result.accuracy,
-                precision=result.precision,
-                recall=result.recall,
-                f1_score=result.f1_score,
-                y_true=result.y_true,
-                y_pred=result.y_pred,
-                y_prob=result.y_prob,
-                feature_importances=result.feature_importances,
-                feature_names=result.feature_names
-            )
-            
-            # Generar y guardar todas las visualizaciones
-            viz.generate_and_save_all(f"visualizations/fine_tuning/no_sentiment/{result.name_model}")
-
-        # Generar tabla de resultados general
+        # Generar visualizaciones usando el nuevo método unificado
         TrainingResultsVisualization.generate_fine_tuning_results_table(
             fine_tuning_results, 
-            "visualizations/fine_tuning/no_sentiment"
+            os.path.join("visualizations", "fine_tuning", "no_sentiment")
         )
 
         return fine_tuning_results

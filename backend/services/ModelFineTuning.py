@@ -30,6 +30,7 @@ class ModelFineTuner:
         self.y_test = y_test
         self.with_sentiment = with_sentiment
         self.pipeline_map = self._get_pipeline_map()
+        self.name_model = None
         
         try:
             metrics_file = 'backend/data/modelos_originales.json'
@@ -78,85 +79,55 @@ class ModelFineTuner:
                     logger.error(f"No se encontró pipeline para el modelo: {model_file}")
                     continue
                 
+                self.name_model = model_name
                 logger.info(f"Iniciando fine-tuning para {model_name}")
                 pipeline = pipeline_class(self.X_train, self.X_test, self.y_train, self.y_test)
                 fine_tuned_model = pipeline.fine_tune()
                 
-                # Manejo especial para modelos de Keras
-                if model_file.endswith('.h5'):
-                    # Obtener predicciones directamente del modelo de Keras
-                    y_pred_train = (fine_tuned_model.model.predict(self.X_train) > 0.5).astype(int).ravel()
-                    y_pred_test = (fine_tuned_model.model.predict(self.X_test) > 0.5).astype(int).ravel()
-                    y_prob_test = fine_tuned_model.model.predict(self.X_test).ravel()
-                else:
-                    # Para modelos sklearn normales
-                    y_pred_train = fine_tuned_model.predict(self.X_train)
-                    y_pred_test = fine_tuned_model.predict(self.X_test)
-                    
-                    # Obtener probabilidades si el modelo lo soporta
-                    y_prob_test = None
-                    if hasattr(fine_tuned_model, 'predict_proba'):
-                        try:
-                            y_prob_test = fine_tuned_model.predict_proba(self.X_test)[:, 1]
-                        except:
-                            if hasattr(fine_tuned_model, 'decision_function'):
-                                y_prob_test = fine_tuned_model.decision_function(self.X_test)
-                
-                metrics = {
-                    'accuracy_train': accuracy_score(self.y_train, y_pred_train),
-                    'accuracy_test': accuracy_score(self.y_test, y_pred_test),
-                    'f1': f1_score(self.y_test, y_pred_test, average='weighted'),
-                    'precision': precision_score(self.y_test, y_pred_test, average='weighted'),
-                    'recall': recall_score(self.y_test, y_pred_test, average='weighted')
-                }
+                # Evaluar el modelo fine-tuned
+                metrics = self.evaluate_model(
+                    fine_tuned_model, 
+                    self.X_train, self.X_test, 
+                    self.y_train, self.y_test,
+                    model_name
+                )
                 
                 # Obtener métricas originales
                 original_metrics = self.original_metrics.get(model_name, {})
                 
                 # Verificar si el modelo mejoró
-                if metrics['f1'] > original_metrics.get('f1_score', 0):
-                    # Guardar modelo fine-tuned
-                    fine_tuned_path = os.path.join(
-                        "backend", "models", "fine_tuned",
-                        f"{os.path.splitext(os.path.basename(model_file))[0]}_fine_tuned{os.path.splitext(model_file)[1]}"
-                    )
-                    os.makedirs(os.path.dirname(fine_tuned_path), exist_ok=True)
-                    
-                    if model_file.endswith('.h5'):
-                        fine_tuned_model.model.save(fine_tuned_path)
-                    else:
-                        joblib.dump(fine_tuned_model, fine_tuned_path)
-                    
+                if metrics['f1_score'] > original_metrics.get('f1_score', 0):
                     response = TrainingResponseModel(
-                        name_model=f"{model_name} (Fine-Tuned)",
+                        name_model=model_name,
                         status="Fine-tuning completado",
-                        accuracy=metrics['accuracy_test'],
                         accuracy_train=metrics['accuracy_train'],
-                        f1_score=metrics['f1'],
+                        accuracy=metrics['accuracy'],
                         precision=metrics['precision'],
                         recall=metrics['recall'],
+                        f1_score=metrics['f1_score'],
                         message="El modelo ha mejorado y se ha guardado exitosamente.",
-                        feature_importances=None,  # Las redes neuronales no tienen feature_importances
-                        feature_names=None,
+                        feature_importances=original_metrics.get('feature_importances'),
+                        feature_names=original_metrics.get('feature_names'),
                         y_true=self.y_test.tolist(),
-                        y_pred=y_pred_test.tolist(),
-                        y_prob=y_prob_test.tolist() if y_prob_test is not None else None
+                        y_pred=metrics['y_pred'].tolist(),
+                        y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
                     )
                 else:
+                    # Si no mejoró, usar las métricas originales
                     response = TrainingResponseModel(
                         name_model=model_name,
                         status="Fine-tuning no mejoró el modelo",
-                        accuracy=original_metrics['accuracy'],
                         accuracy_train=original_metrics['accuracy_train'],
-                        f1_score=original_metrics['f1_score'],
+                        accuracy=original_metrics['accuracy'],
                         precision=original_metrics['precision'],
                         recall=original_metrics['recall'],
+                        f1_score=original_metrics['f1_score'],
                         message="Se mantiene el modelo original por mejor rendimiento.",
                         feature_importances=original_metrics.get('feature_importances'),
                         feature_names=original_metrics.get('feature_names'),
                         y_true=self.y_test.tolist(),
-                        y_pred=y_pred_test.tolist(),
-                        y_prob=y_prob_test.tolist() if y_prob_test is not None else None
+                        y_pred=metrics['y_pred'].tolist(),
+                        y_prob=metrics['y_prob'].tolist() if metrics['y_prob'] is not None else None
                     )
                 
                 responses.append(response)
@@ -168,8 +139,43 @@ class ModelFineTuner:
                 continue
         
         if not responses:
-            logger.warning("No se pudo completar el fine-tuning de ningún modelo")
-        else:
-            logger.info(f"Fine-tuning completado para {len(responses)} modelos")
+            raise ValueError("No se pudo completar el fine-tuning de ningún modelo")
         
         return responses
+
+    def evaluate_model(self, model, X_train, X_test, y_train, y_test, model_name):
+        """Evalúa el modelo y retorna las métricas"""
+        try:
+            # Para modelos de Keras
+            if isinstance(model, NeuralNetworkNoSentimentPipeline) or isinstance(model, NeuralNetworkSentimentPipeline):
+                y_pred_train = (model.model.predict(X_train) > 0.5).astype(int).ravel()
+                y_pred_test = (model.model.predict(X_test) > 0.5).astype(int).ravel()
+                y_prob_test = model.model.predict(X_test).ravel()
+            else:
+                # Para modelos sklearn
+                y_pred_train = model.predict(X_train)
+                y_pred_test = model.predict(X_test)
+                try:
+                    y_prob_test = model.predict_proba(X_test)[:, 1]
+                except:
+                    y_prob_test = model.decision_function(X_test) if hasattr(model, 'decision_function') else None
+
+            metrics = {
+                'accuracy_train': float(accuracy_score(y_train, y_pred_train)),
+                'precision_train': float(precision_score(y_train, y_pred_train, average='weighted')),
+                'recall_train': float(recall_score(y_train, y_pred_train, average='weighted')),
+                'f1_score_train': float(f1_score(y_train, y_pred_train, average='weighted')),
+                'accuracy': float(accuracy_score(y_test, y_pred_test)),
+                'precision': float(precision_score(y_test, y_pred_test, average='weighted')),
+                'recall': float(recall_score(y_test, y_pred_test, average='weighted')),
+                'f1_score': float(f1_score(y_test, y_pred_test, average='weighted')),
+                'y_true': y_test,
+                'y_pred': y_pred_test,
+                'y_prob': y_prob_test,
+                'name_model': model_name
+            }
+            
+            return metrics
+        except Exception as e:
+            logger.error(f"Error al evaluar el modelo {model_name}: {str(e)}")
+            raise
