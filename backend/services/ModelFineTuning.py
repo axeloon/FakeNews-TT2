@@ -53,24 +53,24 @@ class ModelFineTuner:
         if self.with_sentiment:
             return {
                 'models/svm_ngram_model_sentiment.pkl': 
-                    (SVMSentimentPipeline, "N-grams + SVM"),
+                    (SVMSentimentPipeline, "N-grams + SVM CS"),
                 'models/lr_ngram_model_sentiment.pkl': 
-                    (LogisticRegressionSentimentPipeline, "N-grams + Regresión Logística"),
+                    (LogisticRegressionSentimentPipeline, "N-grams + Regresión Logística CS"),
                 'models/boosting_char_ngram_model_sentiment.pkl': 
-                    (BoostingSentimentPipeline, "Boosting (BO) con n-grams de caracteres"),
+                    (BoostingSentimentPipeline, "Boosting (BO) con n-grams de caracteres CS"),
                 'models/nn_embedding_model_sentiment.h5': 
-                    (NeuralNetworkSentimentPipeline, "Embeddings + Redes Neuronales")
+                    (NeuralNetworkSentimentPipeline, "Embeddings + Redes Neuronales CS")
             }
         else:
             return {
                 'models/svm_ngram_model_no_sentiment.pkl': 
-                    (SVMNoSentimentPipeline, "N-grams + SVM"),
+                    (SVMNoSentimentPipeline, "N-grams + SVM SS"),
                 'models/lr_ngram_model_no_sentiment.pkl': 
-                    (LogisticRegressionNoSentimentPipeline, "N-grams + Regresión Logística"),
+                    (LogisticRegressionNoSentimentPipeline, "N-grams + Regresión Logística SS"),
                 'models/boosting_char_ngram_model_no_sentiment.pkl': 
-                    (BoostingNoSentimentPipeline, "Boosting (BO) con n-grams de caracteres"),
+                    (BoostingNoSentimentPipeline, "Boosting (BO) con n-grams de caracteres SS"),
                 'models/nn_embedding_model_no_sentiment.h5': 
-                    (NeuralNetworkNoSentimentPipeline, "Embeddings + Redes Neuronales")
+                    (NeuralNetworkNoSentimentPipeline, "Embeddings + Redes Neuronales SS")
             }
 
     def fine_tune_models(self) -> List[TrainingResponseModel]:
@@ -108,8 +108,11 @@ class ModelFineTuner:
                         accuracy_train=metrics['accuracy_train'],
                         accuracy=metrics['accuracy'],
                         precision=metrics['precision'],
+                        precision_train=metrics['precision_train'],
                         recall=metrics['recall'],
+                        recall_train=metrics['recall_train'],
                         f1_score=metrics['f1_score'],
+                        f1_score_train=metrics['f1_score_train'],
                         message="El modelo ha mejorado y se ha guardado exitosamente.",
                         feature_importances=original_metrics.get('feature_importances'),
                         feature_names=original_metrics.get('feature_names'),
@@ -125,8 +128,11 @@ class ModelFineTuner:
                         accuracy_train=original_metrics['accuracy_train'],
                         accuracy=original_metrics['accuracy'],
                         precision=original_metrics['precision'],
+                        precision_train=original_metrics['precision_train'],
                         recall=original_metrics['recall'],
+                        recall_train=original_metrics['recall_train'],
                         f1_score=original_metrics['f1_score'],
+                        f1_score_train=original_metrics['f1_score_train'],
                         message="Se mantiene el modelo original por mejor rendimiento.",
                         feature_importances=original_metrics.get('feature_importances'),
                         feature_names=original_metrics.get('feature_names'),
