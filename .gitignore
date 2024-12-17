@@ -126,6 +126,9 @@ celerybeat.pid
 
 # ETL/img
 backend/ETL/img/
+#Tablas, graficos y modelos
+visualizations
+backend/models
 
 # Environments
 .env
