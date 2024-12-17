@@ -488,7 +488,8 @@ class TrainingResultsVisualization:
                 'Exactitud': 'accuracy',
                 'Precisión': 'precision',
                 'Sensibilidad': 'recall',
-                'F1-Score': 'f1_score'
+                'F1-Score': 'f1_score',
+                'AUC': 'auc'
             }
             
             # Función auxiliar para generar gráficos
@@ -496,7 +497,18 @@ class TrainingResultsVisualization:
                 plt.figure(figsize=(12, 6))
                 
                 models = [r.name_model for r in results]
-                values = [float(getattr(r, metric_attr)) for r in results]
+                values = []
+                
+                for r in results:
+                    if metric_attr == 'auc':
+                        # Calcular AUC si es posible
+                        if r.y_true is not None and r.y_prob is not None:
+                            auc_score = roc_auc_score(r.y_true, r.y_prob)
+                            values.append(float(auc_score))
+                        else:
+                            values.append(np.nan)
+                    else:
+                        values.append(float(getattr(r, metric_attr)))
                 
                 # Cambiar el color de las barras
                 bars = plt.bar(range(len(models)), values, color='#E49EDD')
@@ -510,7 +522,7 @@ class TrainingResultsVisualization:
                 for bar in bars:
                     height = bar.get_height()
                     plt.text(bar.get_x() + bar.get_width()/2., height,
-                             f'{height:.1%}',
+                             f'{height:.2f}',
                              ha='center', va='bottom')
                 
                 plt.tight_layout()
