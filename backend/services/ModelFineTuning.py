@@ -18,19 +18,21 @@ from backend.services.pipelines.no_sentiment.svm_pipeline import SVMNoSentimentP
 from backend.services.pipelines.no_sentiment.lr_pipeline import LogisticRegressionNoSentimentPipeline
 from backend.services.pipelines.no_sentiment.boosting_pipeline import BoostingNoSentimentPipeline
 from backend.services.pipelines.no_sentiment.nn_pipeline import NeuralNetworkNoSentimentPipeline
+from backend.constant import fine_tuned_dir
 
 logger = logging.getLogger(__name__)
 
 class ModelFineTuner:
-    def __init__(self, model_paths: List[str], X_train, X_test, y_train, y_test, with_sentiment: bool = True):
+    def __init__(self, model_paths: List[str], X_train, X_test, y_train, y_test, with_sentiment: bool = True, pipeline_class = None, name_model: str = None):
         self.model_paths = model_paths
         self.X_train = X_train
         self.X_test = X_test
         self.y_train = y_train
         self.y_test = y_test
         self.with_sentiment = with_sentiment
+        self.pipeline_class = pipeline_class
+        self.name_model = name_model
         self.pipeline_map = self._get_pipeline_map()
-        self.name_model = None
         
         try:
             # Seleccionar el archivo de métricas según el tipo de modelo
@@ -50,6 +52,10 @@ class ModelFineTuner:
             raise
 
     def _get_pipeline_map(self):
+        if self.pipeline_class:
+            # Si se proporciona un pipeline_class, usarlo para todos los modelos
+            return {model_path: (self.pipeline_class, self.name_model) for model_path in self.model_paths}
+        
         if self.with_sentiment:
             return {
                 'models/svm_ngram_model_sentiment.pkl': 
@@ -88,6 +94,19 @@ class ModelFineTuner:
                 logger.info(f"Iniciando fine-tuning para {model_name}")
                 pipeline = pipeline_class(self.X_train, self.X_test, self.y_train, self.y_test)
                 fine_tuned_model = pipeline.fine_tune()
+                
+                # Crear el directorio base si no existe
+                os.makedirs(fine_tuned_dir, exist_ok=True)
+                # Determinar el subdirectorio basado en la clase del pipeline
+                subdir = "best" if pipeline_class and pipeline_class.__name__ == "BoostingPipelineV2" else ""
+                # Crear el subdirectorio si es necesario
+                if subdir:
+                    os.makedirs(os.path.join(fine_tuned_dir, subdir), exist_ok=True)
+                # Guardar el modelo fine-tuned
+                base_name = os.path.basename(model_file)
+                fine_tuned_path = os.path.join(fine_tuned_dir, subdir, base_name)
+                joblib.dump(fine_tuned_model, fine_tuned_path)
+                logger.info(f"Modelo fine-tuned guardado en {fine_tuned_path}")
                 
                 # Evaluar el modelo fine-tuned
                 metrics = self.evaluate_model(
