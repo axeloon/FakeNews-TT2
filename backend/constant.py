@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import random
 import tensorflow as tf
@@ -91,3 +92,8 @@ FEATURE_COLUMNS_SENTIMENT = [
     "content_f_puntuacion", "content_complejidad_lexica", "content_diversidad_lexica",
     "polarity", "subjectivity", "polarity_category", "subjectivity_category"
 ]
+
+# Models
+fine_tuned_dir = os.path.join('backend', 'models', 'fine_tuned')
+best_model_name = 'boosting_char_ngram_model_no_sentiment.pkl'
+best_fine_tuned_model_path = os.path.join(fine_tuned_dir, 'best', best_model_name)
