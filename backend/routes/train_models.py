@@ -9,7 +9,7 @@ from backend.services.ModelTraining import SentimentAnalysisModelTrainer, NoSent
 from backend.services.ModelFineTuning import ModelFineTuner
 from backend.services.TrainingResultsViz import TrainingResultsVisualization
 from backend.services.TrainingResultsVizFinal import FinalModelVisualization
-from backend.constant import fine_tuned_dir
+from backend.constant import best_model_name
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -236,8 +236,6 @@ async def fine_tune_best_model():
             with_sentiment=False
         )
         first_fine_tuning_results = fine_tuner.fine_tune_models()
-
-        adjusted_model_path = os.path.join(fine_tuned_dir, best_model_name)
         
         # Realizar el segundo fine-tuning usando el modelo ajustado
         # Instanciar BoostingPipelineV2
