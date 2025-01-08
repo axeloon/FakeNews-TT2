@@ -25,6 +25,7 @@ tensorflow-io-gcs-filesystem = "0.27.0"
 joblib = "^1.4.2"
 tensorflow = "2.10.0"
 numpy = "1.24.3"
+imbalanced-learn = "^0.12.4"
 
 
 [build-system]

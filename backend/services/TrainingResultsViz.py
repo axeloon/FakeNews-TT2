@@ -13,13 +13,16 @@ import seaborn as sns
 logger = logging.getLogger(__name__)
 
 class TrainingResultsVisualization:
-    def __init__(self, name_model, accuracy_train, accuracy_test, precision=None, recall=None, f1_score=None, y_true=None, y_pred=None, y_prob=None, feature_importances=None, feature_names=None):
+    def __init__(self, name_model, accuracy_train, accuracy_test, precision=None, precision_train=None, recall=None, recall_train=None, f1_score=None, f1_score_train=None, y_true=None, y_pred=None, y_prob=None, feature_importances=None, feature_names=None):
         self.name_model = name_model
         self.accuracy_train = accuracy_train
         self.accuracy_test = accuracy_test
         self.precision = precision
+        self.precision_train = precision_train
         self.recall = recall
+        self.recall_train = recall_train
         self.f1_score = f1_score
+        self.f1_score_train = f1_score_train
         self.y_true = y_true
         self.y_pred = y_pred
         self.y_prob = y_prob
@@ -37,21 +40,31 @@ class TrainingResultsVisualization:
         # Primero generar la tabla comparativa de todos los modelos en la raíz
         comparison_data = {
             'Modelo': [],
-            'Entrenamiento': [],
-            'Prueba': [],
-            'F1-Score': []
+            'Exactitud (Train)': [],
+            'Exactitud (Test)': [],
+            'Precisión (Train)': [],
+            'Precisión (Test)': [],
+            'Sensibilidad (Train)': [],
+            'Sensibilidad (Test)': [],
+            'F1-Score (Train)': [],
+            'F1-Score (Test)': []
         }
         
         for result in training_results:
             comparison_data['Modelo'].append(result.name_model)
-            comparison_data['Entrenamiento'].append(f"{float(result.accuracy_train):.4f}")
-            comparison_data['Prueba'].append(f"{float(result.accuracy):.4f}")
-            comparison_data['F1-Score'].append(f"{float(result.f1_score):.4f}")
+            comparison_data['Exactitud (Train)'].append(f"{float(result.accuracy_train):.4f}")
+            comparison_data['Exactitud (Test)'].append(f"{float(result.accuracy):.4f}")
+            comparison_data['Precisión (Train)'].append(f"{float(result.precision_train):.4f}")
+            comparison_data['Precisión (Test)'].append(f"{float(result.precision):.4f}")
+            comparison_data['Sensibilidad (Train)'].append(f"{float(result.recall_train):.4f}")
+            comparison_data['Sensibilidad (Test)'].append(f"{float(result.recall):.4f}")
+            comparison_data['F1-Score (Train)'].append(f"{float(result.f1_score_train):.4f}")
+            comparison_data['F1-Score (Test)'].append(f"{float(result.f1_score):.4f}")
         
         # Crear DataFrame y tabla comparativa
         df_comparison = pd.DataFrame(comparison_data)
-        plt.figure(figsize=(12, 4))
-        fig, ax = plt.subplots(figsize=(12, 4))
+        plt.figure(figsize=(14, 6))
+        fig, ax = plt.subplots(figsize=(14, 6))
         ax.axis('off')
         
         table = ax.table(
@@ -101,8 +114,11 @@ class TrainingResultsVisualization:
                     accuracy_train=result.accuracy_train,
                     accuracy_test=result.accuracy,
                     precision=result.precision,
+                    precision_train=result.precision_train,
                     recall=result.recall,
+                    recall_train=result.recall_train,
                     f1_score=result.f1_score,
+                    f1_score_train=result.f1_score_train,
                     y_true=result.y_true,
                     y_pred=result.y_pred,
                     y_prob=result.y_prob,
@@ -144,16 +160,22 @@ class TrainingResultsVisualization:
                 'Métrica': [
                     'Exactitud (Train)', 
                     'Exactitud (Test)',
-                    'Precisión',
-                    'Sensibilidad',
-                    'F1-Score'
+                    'Precisión (Train)',
+                    'Precisión (Test)',
+                    'Sensibilidad (Train)',
+                    'Sensibilidad (Test)',
+                    'F1-Score (Train)',
+                    'F1-Score (Test)'
                 ],
                 'Valor': [
                     f"{self.accuracy_train:.4f}",
                     f"{self.accuracy_test:.4f}",
-                    f"{self.precision:.4f}" if hasattr(self, 'precision') else "N/A",
-                    f"{self.recall:.4f}" if hasattr(self, 'recall') else "N/A",
-                    f"{self.f1_score:.4f}" if hasattr(self, 'f1_score') else "N/A"
+                    f"{self.precision_train:.4f}" if self.precision_train else "N/A",
+                    f"{self.precision:.4f}" if self.precision else "N/A",
+                    f"{self.recall_train:.4f}" if self.recall_train else "N/A",
+                    f"{self.recall:.4f}" if self.recall else "N/A",
+                    f"{self.f1_score_train:.4f}" if self.f1_score_train else "N/A",
+                    f"{self.f1_score:.4f}" if self.f1_score else "N/A"
                 ]
             }
             df = pd.DataFrame(data)
@@ -223,20 +245,51 @@ class TrainingResultsVisualization:
             
             metrics = ['Train', 'Test']
             values = [self.accuracy_train, self.accuracy_test]
+            precision_values = [self.precision_train, self.precision]
+            recall_values = [self.recall_train, self.recall]
+            f1_values = [self.f1_score_train, self.f1_score]
             
-            fig, ax = plt.subplots(figsize=(8, 5))
-            bars = ax.bar(metrics, values, color=['#2ecc71', '#3498db'])
+            fig, ax = plt.subplots(2, 2, figsize=(12, 10))
             
-            # Añadir valores sobre las barras
+            # Gráfico de Accuracy
+            bars = ax[0, 0].bar(metrics, values, color=['#2ecc71', '#3498db'])
+            ax[0, 0].set_title(f'Comparación de Accuracy - {self.name_model}')
+            ax[0, 0].set_ylabel('Accuracy')
             for bar in bars:
                 height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.4f}',
-                       ha='center', va='bottom')
+                ax[0, 0].text(bar.get_x() + bar.get_width()/2., height,
+                              f'{height:.4f}',
+                              ha='center', va='bottom')
             
-            ax.set_ylim(0, 1.0)
-            ax.set_title(f'Comparación de Accuracy - {self.name_model}')
-            ax.set_ylabel('Accuracy')
+            # Gráfico de Precisión
+            bars = ax[0, 1].bar(metrics, precision_values, color=['#e74c3c', '#9b59b6'])
+            ax[0, 1].set_title(f'Comparación de Precisión - {self.name_model}')
+            ax[0, 1].set_ylabel('Precisión')
+            for bar in bars:
+                height = bar.get_height()
+                ax[0, 1].text(bar.get_x() + bar.get_width()/2., height,
+                              f'{height:.4f}',
+                              ha='center', va='bottom')
+            
+            # Gráfico de Sensibilidad
+            bars = ax[1, 0].bar(metrics, recall_values, color=['#f1c40f', '#e67e22'])
+            ax[1, 0].set_title(f'Comparación de Sensibilidad - {self.name_model}')
+            ax[1, 0].set_ylabel('Sensibilidad')
+            for bar in bars:
+                height = bar.get_height()
+                ax[1, 0].text(bar.get_x() + bar.get_width()/2., height,
+                              f'{height:.4f}',
+                              ha='center', va='bottom')
+            
+            # Gráfico de F1-Score
+            bars = ax[1, 1].bar(metrics, f1_values, color=['#1abc9c', '#34495e'])
+            ax[1, 1].set_title(f'Comparación de F1-Score - {self.name_model}')
+            ax[1, 1].set_ylabel('F1-Score')
+            for bar in bars:
+                height = bar.get_height()
+                ax[1, 1].text(bar.get_x() + bar.get_width()/2., height,
+                              f'{height:.4f}',
+                              ha='center', va='bottom')
             
             plt.tight_layout()
             plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
@@ -299,7 +352,6 @@ class TrainingResultsVisualization:
     def _generate_detailed_metrics_table(self, save_path):
         """
         Genera una tabla detallada con las métricas de entrenamiento y prueba
-        similar a la tabla 4.1 del ejemplo
         """
         try:
             if not os.path.exists(os.path.dirname(save_path)):
@@ -313,15 +365,15 @@ class TrainingResultsVisualization:
                     f"{float(self.accuracy_test):.4f}"
                 ],
                 'Precisión': [
-                    f"{float(self.precision):.4f}" if self.precision else "N/A",
+                    f"{float(self.precision_train):.4f}" if self.precision_train else "N/A",
                     f"{float(self.precision):.4f}" if self.precision else "N/A"
                 ],
                 'Sensibilidad': [
-                    f"{float(self.recall):.4f}" if self.recall else "N/A",
+                    f"{float(self.recall_train):.4f}" if self.recall_train else "N/A",
                     f"{float(self.recall):.4f}" if self.recall else "N/A"
                 ],
                 'F1-Score': [
-                    f"{float(self.f1_score):.4f}" if self.f1_score else "N/A",
+                    f"{float(self.f1_score_train):.4f}" if self.f1_score_train else "N/A",
                     f"{float(self.f1_score):.4f}" if self.f1_score else "N/A"
                 ]
             }
@@ -369,10 +421,9 @@ class TrainingResultsVisualization:
     def _generate_all_metrics_comparison_table(training_results, output_dir):
         """
         Genera una tabla comparativa con todas las métricas para todos los modelos
-        similar a la Tabla 4.11 del ejemplo
         """
         try:
-            # Crear DataFrame con todas las métricas
+            # Crear DataFrame con las métricas de prueba
             data = {
                 'Modelo': [],
                 'Exactitud': [],
@@ -384,40 +435,30 @@ class TrainingResultsVisualization:
             
             for result in training_results:
                 data['Modelo'].append(result.name_model)
-                data['Exactitud'].append(f"{float(result.accuracy):.4f}")
-                data['Precisión'].append(f"{float(result.precision):.4f}")
-                data['Sensibilidad'].append(f"{float(result.recall):.4f}")
-                data['F1-score'].append(f"{float(result.f1_score):.4f}")
+                data['Exactitud'].append(float(result.accuracy))
+                data['Precisión'].append(float(result.precision))
+                data['Sensibilidad'].append(float(result.recall))
+                data['F1-score'].append(float(result.f1_score))
                 # Calcular AUC si es posible
                 if result.y_true is not None and result.y_prob is not None:
                     auc_score = roc_auc_score(result.y_true, result.y_prob)
-                    data['AUC'].append(f"{float(auc_score):.4f}")
+                    data['AUC'].append(float(auc_score))
                 else:
-                    data['AUC'].append("N/A")
+                    data['AUC'].append(np.nan)
             
             df = pd.DataFrame(data)
             
-            # Crear figura y tabla
+            # Crear figura y tabla con colores
             plt.figure(figsize=(12, 6))
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.axis('off')
+            ax = sns.heatmap(df.drop(columns='Modelo').astype(float), annot=True, fmt=".2f", cmap='RdYlGn', cbar=False,
+                             xticklabels=df.columns[1:], yticklabels=df['Modelo'], linewidths=0.5)
             
-            table = ax.table(
-                cellText=df.values,
-                colLabels=df.columns,
-                cellLoc='center',
-                loc='center',
-                colColours=['#E49EDD'] * len(df.columns),
-                cellColours=[['#F0F0F0' if i % 2 == 0 else '#FFFFFF'] * len(df.columns) 
-                            for i in range(len(df))]
-            )
+            plt.title("Comparación de Métricas entre Modelos", pad=35)
+            plt.yticks(rotation=0)
             
-            table.auto_set_font_size(False)
-            table.set_fontsize(9)
-            table.scale(1.2, 1.5)
-            table.auto_set_column_width(list(range(len(df.columns))))
-            
-            plt.title("Comparación de Métricas entre Modelos", pad=20)
+            # Mover las etiquetas del eje X a la parte superior
+            ax.xaxis.set_ticks_position('top')
+            ax.xaxis.set_label_position('top')
             
             # Guardar tabla
             plt.savefig(
@@ -436,48 +477,66 @@ class TrainingResultsVisualization:
     @staticmethod
     def _generate_metric_comparison_plots(training_results, output_dir):
         """
-        Genera gráficos de barras comparativos para cada métrica
+        Genera gráficos de barras comparativos para todas las métricas de prueba
         """
         try:
+            # Crear directorio para gráficos
+            graphics_dir = os.path.join(output_dir, "graficos")
+            os.makedirs(graphics_dir, exist_ok=True)
+            
             metrics = {
                 'Exactitud': 'accuracy',
                 'Precisión': 'precision',
                 'Sensibilidad': 'recall',
-                'F1-Score': 'f1_score'
+                'F1-Score': 'f1_score',
+                'AUC': 'auc'
             }
             
-            for metric_name, metric_attr in metrics.items():
-                plt.figure(figsize=(10, 6))
+            # Función auxiliar para generar gráficos
+            def create_metric_plot(results, save_dir, metric_name, metric_attr):
+                plt.figure(figsize=(12, 6))
                 
-                models = [result.name_model for result in training_results]
-                values = [getattr(result, metric_attr) for result in training_results]
+                models = [r.name_model for r in results]
+                values = []
                 
-                # Crear gráfico de barras
-                bars = plt.bar(models, values)
+                for r in results:
+                    if metric_attr == 'auc':
+                        # Calcular AUC si es posible
+                        if r.y_true is not None and r.y_prob is not None:
+                            auc_score = roc_auc_score(r.y_true, r.y_prob)
+                            values.append(float(auc_score))
+                        else:
+                            values.append(np.nan)
+                    else:
+                        values.append(float(getattr(r, metric_attr)))
                 
-                # Personalizar gráfico
-                plt.title(f'Comparación de {metric_name} entre Modelos')
-                plt.xlabel('Modelos')
+                # Cambiar el color de las barras
+                bars = plt.bar(range(len(models)), values, color='#E49EDD')
+                
+                plt.title(f'{metric_name} de modelos')
+                plt.xticks(range(len(models)), models, rotation=45, ha='right')
                 plt.ylabel(metric_name)
-                plt.xticks(rotation=45, ha='right')
+                plt.grid(axis='y', linestyle='--', alpha=0.7)
                 
-                # Agregar valores sobre las barras
+                # Añadir valores sobre las barras
                 for bar in bars:
                     height = bar.get_height()
                     plt.text(bar.get_x() + bar.get_width()/2., height,
-                            f'{height:.4f}',
-                            ha='center', va='bottom')
+                             f'{height:.2f}',
+                             ha='center', va='bottom')
                 
                 plt.tight_layout()
-                
-                # Guardar gráfico
                 plt.savefig(
-                    os.path.join(output_dir, f"comparison_{metric_attr}.png"),
+                    os.path.join(save_dir, f"{metric_name.lower()}_comparison.png"),
                     bbox_inches='tight',
                     dpi=300,
                     facecolor='white'
                 )
                 plt.close()
+            
+            # Generar gráficos para cada métrica
+            for metric_name, metric_attr in metrics.items():
+                create_metric_plot(training_results, graphics_dir, metric_name, metric_attr)
                 
         except Exception as e:
             logger.error(f"Error generando gráficos comparativos: {str(e)}")

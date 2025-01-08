@@ -18,19 +18,21 @@ from backend.services.pipelines.no_sentiment.svm_pipeline import SVMNoSentimentP
 from backend.services.pipelines.no_sentiment.lr_pipeline import LogisticRegressionNoSentimentPipeline
 from backend.services.pipelines.no_sentiment.boosting_pipeline import BoostingNoSentimentPipeline
 from backend.services.pipelines.no_sentiment.nn_pipeline import NeuralNetworkNoSentimentPipeline
+from backend.constant import fine_tuned_dir
 
 logger = logging.getLogger(__name__)
 
 class ModelFineTuner:
-    def __init__(self, model_paths: List[str], X_train, X_test, y_train, y_test, with_sentiment: bool = True):
+    def __init__(self, model_paths: List[str], X_train, X_test, y_train, y_test, with_sentiment: bool = True, pipeline_class = None, name_model: str = None):
         self.model_paths = model_paths
         self.X_train = X_train
         self.X_test = X_test
         self.y_train = y_train
         self.y_test = y_test
         self.with_sentiment = with_sentiment
+        self.pipeline_class = pipeline_class
+        self.name_model = name_model
         self.pipeline_map = self._get_pipeline_map()
-        self.name_model = None
         
         try:
             # Seleccionar el archivo de métricas según el tipo de modelo
@@ -50,27 +52,31 @@ class ModelFineTuner:
             raise
 
     def _get_pipeline_map(self):
+        if self.pipeline_class:
+            # Si se proporciona un pipeline_class, usarlo para todos los modelos
+            return {model_path: (self.pipeline_class, self.name_model) for model_path in self.model_paths}
+        
         if self.with_sentiment:
             return {
                 'models/svm_ngram_model_sentiment.pkl': 
-                    (SVMSentimentPipeline, "N-grams + SVM"),
+                    (SVMSentimentPipeline, "N-grams + SVM CS"),
                 'models/lr_ngram_model_sentiment.pkl': 
-                    (LogisticRegressionSentimentPipeline, "N-grams + Regresión Logística"),
+                    (LogisticRegressionSentimentPipeline, "N-grams + Regresión Logística CS"),
                 'models/boosting_char_ngram_model_sentiment.pkl': 
-                    (BoostingSentimentPipeline, "Boosting (BO) con n-grams de caracteres"),
+                    (BoostingSentimentPipeline, "Boosting (BO) con n-grams de caracteres CS"),
                 'models/nn_embedding_model_sentiment.h5': 
-                    (NeuralNetworkSentimentPipeline, "Embeddings + Redes Neuronales")
+                    (NeuralNetworkSentimentPipeline, "Embeddings + Redes Neuronales CS")
             }
         else:
             return {
                 'models/svm_ngram_model_no_sentiment.pkl': 
-                    (SVMNoSentimentPipeline, "N-grams + SVM"),
+                    (SVMNoSentimentPipeline, "N-grams + SVM SS"),
                 'models/lr_ngram_model_no_sentiment.pkl': 
-                    (LogisticRegressionNoSentimentPipeline, "N-grams + Regresión Logística"),
+                    (LogisticRegressionNoSentimentPipeline, "N-grams + Regresión Logística SS"),
                 'models/boosting_char_ngram_model_no_sentiment.pkl': 
-                    (BoostingNoSentimentPipeline, "Boosting (BO) con n-grams de caracteres"),
+                    (BoostingNoSentimentPipeline, "Boosting (BO) con n-grams de caracteres SS"),
                 'models/nn_embedding_model_no_sentiment.h5': 
-                    (NeuralNetworkNoSentimentPipeline, "Embeddings + Redes Neuronales")
+                    (NeuralNetworkNoSentimentPipeline, "Embeddings + Redes Neuronales SS")
             }
 
     def fine_tune_models(self) -> List[TrainingResponseModel]:
@@ -88,6 +94,19 @@ class ModelFineTuner:
                 logger.info(f"Iniciando fine-tuning para {model_name}")
                 pipeline = pipeline_class(self.X_train, self.X_test, self.y_train, self.y_test)
                 fine_tuned_model = pipeline.fine_tune()
+                
+                # Crear el directorio base si no existe
+                os.makedirs(fine_tuned_dir, exist_ok=True)
+                # Determinar el subdirectorio basado en la clase del pipeline
+                subdir = "best" if pipeline_class and pipeline_class.__name__ == "BoostingPipelineV2" else ""
+                # Crear el subdirectorio si es necesario
+                if subdir:
+                    os.makedirs(os.path.join(fine_tuned_dir, subdir), exist_ok=True)
+                # Guardar el modelo fine-tuned
+                base_name = os.path.basename(model_file)
+                fine_tuned_path = os.path.join(fine_tuned_dir, subdir, base_name)
+                joblib.dump(fine_tuned_model, fine_tuned_path)
+                logger.info(f"Modelo fine-tuned guardado en {fine_tuned_path}")
                 
                 # Evaluar el modelo fine-tuned
                 metrics = self.evaluate_model(
@@ -108,8 +127,11 @@ class ModelFineTuner:
                         accuracy_train=metrics['accuracy_train'],
                         accuracy=metrics['accuracy'],
                         precision=metrics['precision'],
+                        precision_train=metrics['precision_train'],
                         recall=metrics['recall'],
+                        recall_train=metrics['recall_train'],
                         f1_score=metrics['f1_score'],
+                        f1_score_train=metrics['f1_score_train'],
                         message="El modelo ha mejorado y se ha guardado exitosamente.",
                         feature_importances=original_metrics.get('feature_importances'),
                         feature_names=original_metrics.get('feature_names'),
@@ -125,8 +147,11 @@ class ModelFineTuner:
                         accuracy_train=original_metrics['accuracy_train'],
                         accuracy=original_metrics['accuracy'],
                         precision=original_metrics['precision'],
+                        precision_train=original_metrics['precision_train'],
                         recall=original_metrics['recall'],
+                        recall_train=original_metrics['recall_train'],
                         f1_score=original_metrics['f1_score'],
+                        f1_score_train=original_metrics['f1_score_train'],
                         message="Se mantiene el modelo original por mejor rendimiento.",
                         feature_importances=original_metrics.get('feature_importances'),
                         feature_names=original_metrics.get('feature_names'),

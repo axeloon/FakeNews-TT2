@@ -67,8 +67,8 @@ class CsvRequest(BaseModel):
 class TrainingResponseModel(BaseModel):
     name_model: str
     status: str
-    accuracy_train: float
-    accuracy: float
+    accuracy_train: float | None = None
+    accuracy: float | None = None
     precision: float | None = None
     precision_train: float | None = None
     recall: float | None = None
